@@ -1,4 +1,3 @@
-package src.main;
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.scene.Parent;

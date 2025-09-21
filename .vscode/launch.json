@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "GameApplication",
+            "request": "launch",
+            "mainClass": "GameApplication",
+            "projectName": "Jeopar-zzle_6a68557e"
+        },
+        {
+            "type": "java",
+            "name": "Run GameApplication",
+            "request": "launch",
+            "mainClass": "GameApplication",
+            "projectName": "JEOPAR-ZZLE",
+            "vmArgs": "--module-path \"C:\\Program Files\\Java\\javafx-sdk-23.0.2\\lib\" --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.base",
+            "cwd": "${workspaceFolder}",
+            "classpath": [
+                "src"
+            ],
+            "console": "internalConsole"
+        }
+    ]
+}
