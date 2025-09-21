@@ -4,13 +4,13 @@
 This includes the source code for Jeopar-zzle. This is a **JavaFX-based** application built using **Java 21** and **JavaFX SDK 23.0.2**.
 
 **Group Members**
-Agaton, Magne Justin
-Biscante, Kraven
-Esguerra, Eugene
-Lira, Dynise
-Mondragon, Jake
-Montes, Kenneth
-Negros, Rosemarie
+1. Agaton, Magne Justin
+2. Biscante, Kraven
+3. Esguerra, Eugene
+4. Lira, Dynise
+5. Mondragon, Jake
+6. Montes, Kenneth
+7. Negros, Rosemarie
 
 # Elements
 
