@@ -1,5 +1,6 @@
 import javafx.application.Application;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.scene.Scene;
 
 public class GameApplication extends Application {
@@ -10,10 +11,12 @@ public class GameApplication extends Application {
     
     @Override
     public void start(Stage primaryStage) {
+        primaryStage.initStyle(StageStyle.UNDECORATED);
         primaryStage.setTitle("Game Application");
         primaryStage.setWidth(1000);
         primaryStage.setHeight(600);
         primaryStage.setResizable(false);
+        
         
         // Start with splash screen
         SplashScreen splashScreen = new SplashScreen(primaryStage);

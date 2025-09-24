@@ -1,9 +1,14 @@
+
+
 import javafx.animation.FadeTransition;
 import javafx.animation.PauseTransition;
 import javafx.scene.Parent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.StackPane;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -14,6 +19,7 @@ public class SplashScreen {
     private StackPane root;
     private Stage stage;
     private Runnable onSplashComplete;
+    private MediaPlayer videoPlayer;
     
     public SplashScreen(Stage stage) {
         this.stage = stage;
@@ -24,40 +30,11 @@ public class SplashScreen {
         root = new StackPane();
         root.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
         
-        // Background
-        try {
-            Image backgroundImage = new Image(getClass().getResourceAsStream(Constants.SPLASH_BACKGROUND));
-            ImageView background = new ImageView(backgroundImage);
-            background.setFitWidth(Constants.SCREEN_WIDTH);
-            background.setFitHeight(Constants.SCREEN_HEIGHT);
-            root.getChildren().add(background);
-        } catch (Exception e) {
-            // Fallback to colored background if image not found
-            root.setStyle("-fx-background-color: linear-gradient(to bottom, #2c3e50, #34495e);");
-        }
+        // Set fallback background first
+        root.setStyle("-fx-background-color: linear-gradient(to bottom, #2c3e50, #34495e);");
         
-        // Logo
-        try {
-            Image logoImage = new Image(getClass().getResourceAsStream(Constants.LOGO_IMAGE));
-            ImageView logo = new ImageView(logoImage);
-            logo.setFitWidth(300);
-            logo.setFitHeight(150);
-            logo.setPreserveRatio(true);
-            root.getChildren().add(logo);
-        } catch (Exception e) {
-            // Fallback text logo
-            Text logoText = new Text("GAME LOGO");
-            logoText.setFont(Font.font("Arial", 48));
-            logoText.setFill(Color.WHITE);
-            root.getChildren().add(logoText);
-        }
-        
-        // Loading text
-        Text loadingText = new Text("Loading...");
-        loadingText.setFont(Font.font("Arial", 24));
-        loadingText.setFill(Color.WHITE);
-        loadingText.setTranslateY(100);
-        root.getChildren().add(loadingText);
+        // Try to load splash video
+        setupSplashVideo();
         
         // Fade in animation
         FadeTransition fadeIn = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
@@ -71,7 +48,57 @@ public class SplashScreen {
         pause.play();
     }
     
+    private void setupSplashVideo() {
+        try {
+            System.out.println("Looking for splash video at: " + Constants.SPLASH_VIDEO);
+            java.net.URL resourceUrl = getClass().getResource(Constants.SPLASH_VIDEO);
+            System.out.println("Splash video URL: " + resourceUrl);
+            
+            if (resourceUrl == null) {
+                throw new Exception("Splash video resource not found: " + Constants.SPLASH_VIDEO);
+            }
+            
+            Media media = new Media(resourceUrl.toExternalForm());
+            videoPlayer = new MediaPlayer(media);
+            
+            // Add error handling for MediaPlayer
+            videoPlayer.setOnError(() -> {
+                System.out.println("Splash video MediaPlayer error: " + videoPlayer.getError());
+            });
+            
+            videoPlayer.setOnReady(() -> {
+                System.out.println("Splash video loaded successfully!");
+                System.out.println("Video duration: " + media.getDuration());
+            });
+            
+            // Don't loop the splash video
+            videoPlayer.setCycleCount(1);
+            
+            MediaView mediaView = new MediaView(videoPlayer);
+            mediaView.setFitWidth(Constants.SCREEN_WIDTH);
+            mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
+            mediaView.setPreserveRatio(false);
+            
+            // Add video as the bottom layer
+            root.getChildren().add(0, mediaView);
+            videoPlayer.play();
+            
+        } catch (Exception e) {
+            System.out.println("Splash video not found, using static background");
+            System.out.println("Error: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    
     private void transitionToLobby() {
+        System.out.println("Transitioning to lobby...");
+        
+        // Stop splash video
+        if (videoPlayer != null) {
+            videoPlayer.stop();
+        }
+        
         FadeTransition fadeOut = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
         fadeOut.setFromValue(1.0);
         fadeOut.setToValue(0.0);
@@ -89,5 +116,12 @@ public class SplashScreen {
     
     public void setOnSplashComplete(Runnable onSplashComplete) {
         this.onSplashComplete = onSplashComplete;
+    }
+    
+    public void cleanup() {
+        if (videoPlayer != null) {
+            videoPlayer.stop();
+            videoPlayer.dispose();
+        }
     }
 }

@@ -16,9 +16,7 @@
             "projectName": "JEOPAR-ZZLE",
             "vmArgs": "--module-path \"C:\\Program Files\\Java\\javafx-sdk-23.0.2\\lib\" --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.base",
             "cwd": "${workspaceFolder}",
-            "classpath": [
-                "src"
-            ],
+            "classpath": ["src", "src/resources"],
             "console": "internalConsole"
         }
     ]
