@@ -10,6 +10,8 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.stage.Stage;
+import javafx.animation.FadeTransition;
+import javafx.scene.Scene;
 import javafx.util.Duration;
 
 public class LobbyScreen {
@@ -59,7 +61,7 @@ public class LobbyScreen {
                 System.out.println("Video duration: " + media.getDuration());
             });
 
-            videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+            videoPlayer.setCycleCount(1); // Test: play once instead of looping
 
             MediaView mediaView = new MediaView(videoPlayer);
             mediaView.setFitWidth(Constants.SCREEN_WIDTH);
@@ -120,7 +122,7 @@ public class LobbyScreen {
                 Constants.BUTTON_CLICK_SOUND,
                 event -> onExitClicked());
 
-        root.getChildren().addAll(playButton, howToButton,CreditsButton, exitButton);
+        root.getChildren().addAll(playButton, howToButton, CreditsButton, exitButton);
     }
 
     private Image loadImage(String path) {
@@ -195,13 +197,69 @@ public class LobbyScreen {
     }
 
     private void HowToClicked() {
-        System.out.println("How To button clicked!");
-        // TODO: Show options screen
+        System.out.println("How to button clicked!");
+
+        // Create fade out transition for current lobby screen
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+
+        // When fade out completes, switch to HowTo screen
+        fadeOut.setOnFinished(event -> {
+            // Clean up current lobby resources
+            cleanup();
+
+            // Create new HowTo screen
+            HowToScreen howToScreen = new HowToScreen(stage);
+
+            // Set up back navigation callback
+            howToScreen.setOnBackToLobby(() -> {
+                // When back button is clicked, return to lobby
+                LobbyScreen newLobby = new LobbyScreen(stage);
+                Scene lobbyScene = new Scene(newLobby.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+                stage.setScene(lobbyScene);
+            });
+
+            // Switch to HowTo screen
+            Scene howToScene = new Scene(howToScreen.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+            stage.setScene(howToScene);
+        });
+
+        // Start the fade out animation
+        fadeOut.play();
     }
 
     private void onCreditsClicked() {
         System.out.println("Credits button clicked!");
-        // TODO: Show options screen
+
+        // Create fade out transition for current lobby screen
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+
+        // When fade out completes, switch to Credits screen
+        fadeOut.setOnFinished(event -> {
+            // Clean up current lobby resources
+            cleanup();
+
+            // Create new Credits screen
+            CreditsScreen creditsScreen = new CreditsScreen(stage);
+
+            // Set up back navigation callback
+            creditsScreen.setOnBackToLobby(() -> {
+                // When back button is clicked, return to lobby
+                LobbyScreen newLobby = new LobbyScreen(stage);
+                Scene lobbyScene = new Scene(newLobby.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+                stage.setScene(lobbyScene);
+            });
+
+            // Switch to Credits screen
+            Scene creditsScene = new Scene(creditsScreen.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+            stage.setScene(creditsScene);
+        });
+
+        // Start the fade out animation
+        fadeOut.play();
     }
 
     private void onExitClicked() {
