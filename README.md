@@ -42,6 +42,9 @@ Download and install JavaFX SDK 23.0.2:
 # To Run on Command Line
 Note that you should have JavaFX before proceeding...
 ```
+javac --module-path "C:\Program Files\Java\javafx-sdk-23.0.2\lib" --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.base -cp src src/*.java      
+
+java --module-path "C:\Program Files\Java\javafx-sdk-23.0.2\lib" --add-modules javafx.controls,javafx.fxml,javafx.media,javafx.base -cp src GameApplication
 ```
 
 # Interface
