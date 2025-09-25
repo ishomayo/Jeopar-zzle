@@ -18,8 +18,8 @@ public class LobbyScreen {
     private Pane root;
     private Stage stage;
     private MediaPlayer videoPlayer;
-    private static AudioPlayer player = new AudioPlayer(); // Assuming you have this class
-    private static boolean isSFXOn = true; // Game setting
+    private static AudioPlayer player = new AudioPlayer(); 
+    private static boolean isSFXOn = true; 
 
     public LobbyScreen(Stage stage) {
         this.stage = stage;
@@ -39,7 +39,6 @@ public class LobbyScreen {
 
     private void setupVideoBackground() {
         try {
-            // Debug: Check if resource exists
             System.out.println("Looking for video at: " + Constants.LOBBY_BACKGROUND_VIDEO);
             java.net.URL resourceUrl = getClass().getResource(Constants.LOBBY_BACKGROUND_VIDEO);
             System.out.println("Resource URL: " + resourceUrl);
@@ -51,7 +50,6 @@ public class LobbyScreen {
             Media media = new Media(resourceUrl.toExternalForm());
             videoPlayer = new MediaPlayer(media);
 
-            // Add error handling for MediaPlayer
             videoPlayer.setOnError(() -> {
                 System.out.println("MediaPlayer error: " + videoPlayer.getError());
             });
@@ -61,7 +59,7 @@ public class LobbyScreen {
                 System.out.println("Video duration: " + media.getDuration());
             });
 
-            videoPlayer.setCycleCount(1); // Test: play once instead of looping
+            videoPlayer.setCycleCount(1); 
 
             MediaView mediaView = new MediaView(videoPlayer);
             mediaView.setFitWidth(Constants.SCREEN_WIDTH);
@@ -72,8 +70,6 @@ public class LobbyScreen {
             videoPlayer.play();
 
         } catch (Exception e) {
-            // Fallback to static background
-            System.out.println("Video background not found, using fallback");
             System.out.println("Error: " + e.getMessage());
             e.printStackTrace();
             root.setStyle(
@@ -82,7 +78,6 @@ public class LobbyScreen {
     }
 
     private void createButtons() {
-        // Play Button - centered
         Button playButton = createImageButton(
                 loadImage(Constants.PLAY_BUTTON),
                 loadImage(Constants.PLAY_BUTTON_HOVER),
@@ -92,7 +87,6 @@ public class LobbyScreen {
                 Constants.BUTTON_CLICK_SOUND,
                 event -> onPlayClicked());
 
-        // howToButton - centered
         Button howToButton = createImageButton(
                 loadImage(Constants.HOWTO_BUTTON),
                 loadImage(Constants.HOWTO_BUTTON_HOVER),
@@ -102,7 +96,6 @@ public class LobbyScreen {
                 Constants.BUTTON_CLICK_SOUND,
                 event -> HowToClicked());
 
-        // Credits Button - centered
         Button CreditsButton = createImageButton(
                 loadImage(Constants.CREDITS_BUTTON),
                 loadImage(Constants.CREDITS_BUTTON_HOVER),
@@ -112,7 +105,6 @@ public class LobbyScreen {
                 Constants.BUTTON_CLICK_SOUND,
                 event -> onCreditsClicked());
 
-        // Exit Button - centered
         Button exitButton = createImageButton(
                 loadImage(Constants.EXIT_BUTTON),
                 loadImage(Constants.EXIT_BUTTON_HOVER),
@@ -130,12 +122,10 @@ public class LobbyScreen {
             return new Image(getClass().getResourceAsStream(path));
         } catch (Exception e) {
             System.out.println("Image not found: " + path);
-            // Return a placeholder or null - the button creation method handles null images
             return null;
         }
     }
 
-    // Overloaded method to create an image button with hover and click effects
     private Button createImageButton(Image image, Image hoverImage, Image clickImage, double x, double y,
             double width, double height, String soundPath, EventHandler<ActionEvent> action) {
         Button button = new Button();
@@ -146,7 +136,6 @@ public class LobbyScreen {
             imageView.setFitHeight(height);
             button.setGraphic(imageView);
         } else {
-            // Fallback button style if no image
             button.setText("Button");
             button.setStyle(
                     "-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
@@ -168,8 +157,7 @@ public class LobbyScreen {
         if (action != null) {
             button.setOnAction(event -> {
                 if (soundPath != null && !soundPath.isEmpty() && isSFXOn) {
-                    // player.playSoundEffect(soundPath); // Uncomment when AudioPlayer is
-                    // implemented
+                    // player.playSoundEffect(soundPath); // oks n uncomment if oke na audio haha
                 }
                 action.handle(event);
             });
@@ -189,76 +177,76 @@ public class LobbyScreen {
 
     private void onPlayClicked() {
         System.out.println("Play button clicked!");
-        // Stop video before transitioning
-        if (videoPlayer != null) {
-            videoPlayer.stop();
-        }
-        // TODO: Transition to game screen
-    }
 
-    private void HowToClicked() {
-        System.out.println("How to button clicked!");
-
-        // Create fade out transition for current lobby screen
         FadeTransition fadeOut = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
         fadeOut.setFromValue(1.0);
         fadeOut.setToValue(0.0);
 
-        // When fade out completes, switch to HowTo screen
         fadeOut.setOnFinished(event -> {
-            // Clean up current lobby resources
             cleanup();
 
-            // Create new HowTo screen
-            HowToScreen howToScreen = new HowToScreen(stage);
+            GameScreen gameScreen = new GameScreen(stage);
 
-            // Set up back navigation callback
-            howToScreen.setOnBackToLobby(() -> {
-                // When back button is clicked, return to lobby
+            gameScreen.setOnBackToLobby(() -> {
                 LobbyScreen newLobby = new LobbyScreen(stage);
                 Scene lobbyScene = new Scene(newLobby.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
                 stage.setScene(lobbyScene);
             });
 
-            // Switch to HowTo screen
+            Scene gameScene = new Scene(gameScreen.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+            stage.setScene(gameScene);
+        });
+
+        fadeOut.play();
+    }
+
+    private void HowToClicked() {
+        System.out.println("How to button clicked!");
+
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+
+        fadeOut.setOnFinished(event -> {
+            cleanup();
+
+            HowToScreen howToScreen = new HowToScreen(stage);
+
+            howToScreen.setOnBackToLobby(() -> {
+                LobbyScreen newLobby = new LobbyScreen(stage);
+                Scene lobbyScene = new Scene(newLobby.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+                stage.setScene(lobbyScene);
+            });
+
             Scene howToScene = new Scene(howToScreen.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
             stage.setScene(howToScene);
         });
 
-        // Start the fade out animation
         fadeOut.play();
     }
 
     private void onCreditsClicked() {
         System.out.println("Credits button clicked!");
 
-        // Create fade out transition for current lobby screen
         FadeTransition fadeOut = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
         fadeOut.setFromValue(1.0);
         fadeOut.setToValue(0.0);
 
-        // When fade out completes, switch to Credits screen
         fadeOut.setOnFinished(event -> {
-            // Clean up current lobby resources
             cleanup();
 
-            // Create new Credits screen
             CreditsScreen creditsScreen = new CreditsScreen(stage);
 
-            // Set up back navigation callback
             creditsScreen.setOnBackToLobby(() -> {
-                // When back button is clicked, return to lobby
                 LobbyScreen newLobby = new LobbyScreen(stage);
                 Scene lobbyScene = new Scene(newLobby.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
                 stage.setScene(lobbyScene);
             });
 
-            // Switch to Credits screen
             Scene creditsScene = new Scene(creditsScreen.getRoot(), Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
             stage.setScene(creditsScene);
         });
 
-        // Start the fade out animation
         fadeOut.play();
     }
 

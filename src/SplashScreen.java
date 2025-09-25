@@ -30,10 +30,8 @@ public class SplashScreen {
         root = new StackPane();
         root.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
         
-        // Set fallback background first
         root.setStyle("-fx-background-color: linear-gradient(to bottom, #2c3e50, #34495e);");
         
-        // Try to load splash video
         setupSplashVideo();
         
         // Fade in animation
@@ -61,7 +59,6 @@ public class SplashScreen {
             Media media = new Media(resourceUrl.toExternalForm());
             videoPlayer = new MediaPlayer(media);
             
-            // Add error handling for MediaPlayer
             videoPlayer.setOnError(() -> {
                 System.out.println("Splash video MediaPlayer error: " + videoPlayer.getError());
             });
@@ -71,7 +68,6 @@ public class SplashScreen {
                 System.out.println("Video duration: " + media.getDuration());
             });
             
-            // Don't loop the splash video
             videoPlayer.setCycleCount(1);
             
             MediaView mediaView = new MediaView(videoPlayer);
@@ -79,7 +75,6 @@ public class SplashScreen {
             mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
             mediaView.setPreserveRatio(false);
             
-            // Add video as the bottom layer
             root.getChildren().add(0, mediaView);
             videoPlayer.play();
             
@@ -94,7 +89,6 @@ public class SplashScreen {
     private void transitionToLobby() {
         System.out.println("Transitioning to lobby...");
         
-        // Stop splash video
         if (videoPlayer != null) {
             videoPlayer.stop();
         }
