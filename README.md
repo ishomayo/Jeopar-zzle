@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="Logo" width="150">
+</p>
+
 # Jeopar-zzle
 ## This repository is for Team 3's Assignment 1 for CMSC 170.
 
