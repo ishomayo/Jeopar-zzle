@@ -296,7 +296,7 @@ public class GameScreen {
         
         answerField.setOnAction(e -> checkImageGuess());
 
-        Button guessBtn = new Button("GUESS THE IMAGE");
+        Button guessBtn = new Button("Type here..");
         guessBtn.setStyle(
                 "-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 15px; -fx-background-radius: 5;");
         guessBtn.setPrefWidth(180);
