@@ -39,12 +39,15 @@ public class Constants {
     public static final String HOME_BUTTON_HOVER = "/images/back_button_hover.png";
     public static final String HOME_BUTTON_CLICK = "/images/back_button_click.png";
     
-    public static final String GAME_BACKGROUND_IMAGE = "/images/game_background.jpg";
+    public static final String GAME_BACKGROUND_IMAGE = "/images/game_background.png";
 
     // Sound resources
-    public static final String BUTTON_CLICK_SOUND = "/sounds/button_click.wav";
-    public static final String BUTTON_HOVER_SOUND = "/sounds/button_hover.wav";
-    public static final String BACKGROUND_MUSIC = "/sounds/background_music.mp3";
+    public static final String BUTTON_CLICK_SOUND = "/sounds/click.mp3";
+    public static final String BUTTON_HOVER_SOUND = "/sounds/hover.mp3";
+    
+    // Music resources
+    public static final String LOBBY_MUSIC = "/sounds/bg.mp3";
+    public static final String GAME_MUSIC = "/sounds/ingame.mp3";
 
     // Game settings
     public static final double BUTTON_WIDTH = 365;

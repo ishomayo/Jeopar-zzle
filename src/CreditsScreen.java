@@ -17,7 +17,7 @@ public class CreditsScreen {
     private Pane root;
     private Stage stage;
     private MediaPlayer videoPlayer;
-    private static AudioPlayer player = new AudioPlayer();
+    private AudioManager audioManager = AudioManager.getInstance();
     private static boolean isSFXOn = true;
     private Runnable onBackToLobby;
 
@@ -49,23 +49,17 @@ public class CreditsScreen {
             java.net.URL resourceUrl = getClass().getResource(Constants.CREDITS_VIDEO);
             System.out.println("Credits video URL: " + resourceUrl);
 
-            if (resourceUrl == null) {
-                throw new Exception("Credits video resource not found: " + Constants.CREDITS_VIDEO);
-            }
+            if (resourceUrl == null)
+                throw new Exception("Credits video resource not found");
 
             Media media = new Media(resourceUrl.toExternalForm());
             videoPlayer = new MediaPlayer(media);
 
             videoPlayer.setOnError(() -> {
                 System.out.println("Credits MediaPlayer error: " + videoPlayer.getError());
+                retryVideoLoad(); // ✅ retry logic
             });
 
-            videoPlayer.setOnReady(() -> {
-                System.out.println("Credits video loaded successfully!");
-                System.out.println("Video duration: " + media.getDuration());
-            });
-
-            // Credits might want to play once or loop depending on preference
             videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
 
             MediaView mediaView = new MediaView(videoPlayer);
@@ -73,15 +67,32 @@ public class CreditsScreen {
             mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
             mediaView.setPreserveRatio(false);
 
-            root.getChildren().add(mediaView);
+            // ✅ Keep it behind UI elements
+            if (!root.getChildren().contains(mediaView)) {
+                root.getChildren().add(0, mediaView);
+            } else {
+                mediaView.toBack();
+            }
+
             videoPlayer.play();
 
         } catch (Exception e) {
             System.out.println("Credits video not found, using fallback");
-            System.out.println("Error: " + e.getMessage());
             e.printStackTrace();
             root.setStyle("-fx-background-color: linear-gradient(to bottom right, #8e44ad, #3498db);");
         }
+    }
+
+    private void retryVideoLoad() {
+        Platform.runLater(() -> {
+            System.out.println("Retrying Credits video load...");
+            cleanup();
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ignored) {
+            }
+            setupVideoBackground();
+        });
     }
 
     private void createBackButton() {
@@ -92,8 +103,7 @@ public class CreditsScreen {
                 20, 20, // Top-left position
                 Constants.BACK_BUTTON_WIDTH, Constants.BACK_BUTTON_HEIGHT,
                 Constants.BUTTON_CLICK_SOUND,
-                event -> onBackClicked()
-        );
+                event -> onBackClicked());
 
         root.getChildren().add(backButton);
     }
@@ -117,9 +127,9 @@ public class CreditsScreen {
             imageView.setFitHeight(height);
             button.setGraphic(imageView);
         } else {
-            // Fallback button style if no image
             button.setText("← Back");
-            button.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-border-radius: 5;");
+            button.setStyle(
+                    "-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-border-radius: 5;");
         }
 
         button.setStyle(button.getStyle() + "-fx-background-color: transparent; -fx-border-color: transparent;");
@@ -137,8 +147,9 @@ public class CreditsScreen {
 
         if (action != null) {
             button.setOnAction(event -> {
-                if (soundPath != null && !soundPath.isEmpty() && isSFXOn) {
-                    // player.playSoundEffect(soundPath);
+                // Play click sound using AudioManager
+                if (soundPath != null && !soundPath.isEmpty()) {
+                    audioManager.playSoundEffect(soundPath);
                 }
                 action.handle(event);
             });
@@ -158,7 +169,7 @@ public class CreditsScreen {
 
     private void onBackClicked() {
         System.out.println("Back button clicked from Credits!");
-        
+
         // Fade out transition
         FadeTransition fadeOut = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
         fadeOut.setFromValue(1.0);
@@ -185,5 +196,6 @@ public class CreditsScreen {
             videoPlayer.stop();
             videoPlayer.dispose();
         }
+        // DON'T stop background music - it continues to lobby
     }
 }

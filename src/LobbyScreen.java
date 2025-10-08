@@ -10,6 +10,9 @@ import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.stage.Stage;
+
+import java.io.File;
+
 import javafx.animation.FadeTransition;
 import javafx.scene.Scene;
 import javafx.util.Duration;
@@ -18,8 +21,8 @@ public class LobbyScreen {
     private Pane root;
     private Stage stage;
     private MediaPlayer videoPlayer;
-    private static AudioPlayer player = new AudioPlayer(); 
-    private static boolean isSFXOn = true; 
+    private AudioManager audioManager = AudioManager.getInstance();
+    private static boolean isSFXOn = true;
 
     public LobbyScreen(Stage stage) {
         this.stage = stage;
@@ -30,12 +33,19 @@ public class LobbyScreen {
         root = new Pane();
         root.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
 
+        // Start lobby music
+        audioManager.playBackgroundMusic(Constants.LOBBY_MUSIC);
+
         // Video background
         setupVideoBackground();
 
         // Create buttons
         createButtons();
     }
+
+    private static final int MAX_RETRIES = 3;
+    private int retryCount = 0;
+    private MediaView mediaView; // Keep a single instance
 
     private void setupVideoBackground() {
         try {
@@ -44,7 +54,14 @@ public class LobbyScreen {
             System.out.println("Resource URL: " + resourceUrl);
 
             if (resourceUrl == null) {
-                throw new Exception("Video resource not found: " + Constants.LOBBY_BACKGROUND_VIDEO);
+                // Try file system path as fallback
+                File file = new File(Constants.LOBBY_BACKGROUND_VIDEO);
+                if (file.exists()) {
+                    resourceUrl = file.toURI().toURL();
+                    System.out.println("Loaded from file path instead.");
+                } else {
+                    throw new Exception("Video resource not found: " + Constants.LOBBY_BACKGROUND_VIDEO);
+                }
             }
 
             Media media = new Media(resourceUrl.toExternalForm());
@@ -52,21 +69,49 @@ public class LobbyScreen {
 
             videoPlayer.setOnError(() -> {
                 System.out.println("MediaPlayer error: " + videoPlayer.getError());
+
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    System.out.println("Retrying video load... Attempt " + retryCount + " of " + MAX_RETRIES);
+
+                    // Retry safely after a short delay
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(300);
+                            javafx.application.Platform.runLater(this::setupVideoBackground);
+                        } catch (InterruptedException ignored) {
+                        }
+                    }).start();
+
+                } else {
+                    System.out.println("Max retries reached. Falling back to background color.");
+                    root.setStyle(
+                            "-fx-background-color: linear-gradient(to bottom right, #667db6, #0082c8, #0082c8, #667db6);");
+                }
             });
 
             videoPlayer.setOnReady(() -> {
+                retryCount = 0;
                 System.out.println("Video loaded successfully!");
                 System.out.println("Video duration: " + media.getDuration());
             });
 
-            videoPlayer.setCycleCount(1); 
+            videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
 
-            MediaView mediaView = new MediaView(videoPlayer);
-            mediaView.setFitWidth(Constants.SCREEN_WIDTH);
-            mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
-            mediaView.setPreserveRatio(false);
+            // ✅ Create MediaView only once
+            if (mediaView == null) {
+                mediaView = new MediaView(videoPlayer);
+                mediaView.setFitWidth(Constants.SCREEN_WIDTH);
+                mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
+                mediaView.setPreserveRatio(false);
 
-            root.getChildren().add(mediaView);
+                // Ensure video is behind everything else
+                root.getChildren().add(0, mediaView);
+            } else {
+                // Reuse the same MediaView
+                mediaView.setMediaPlayer(videoPlayer);
+            }
+
             videoPlayer.play();
 
         } catch (Exception e) {
@@ -148,7 +193,11 @@ public class LobbyScreen {
         button.setPrefHeight(height);
 
         if (hoverImage != null && clickImage != null) {
-            button.setOnMouseEntered(event -> setButtonGraphic(button, hoverImage, width, height));
+            button.setOnMouseEntered(event -> {
+                setButtonGraphic(button, hoverImage, width, height);
+                // Optional: play hover sound
+                // audioManager.playSoundEffect(Constants.BUTTON_HOVER_SOUND);
+            });
             button.setOnMouseExited(event -> setButtonGraphic(button, image, width, height));
             button.setOnMousePressed(event -> setButtonGraphic(button, clickImage, width, height));
             button.setOnMouseReleased(event -> setButtonGraphic(button, image, width, height));
@@ -156,8 +205,9 @@ public class LobbyScreen {
 
         if (action != null) {
             button.setOnAction(event -> {
-                if (soundPath != null && !soundPath.isEmpty() && isSFXOn) {
-                    // player.playSoundEffect(soundPath); // oks n uncomment if oke na audio haha
+                // Play click sound
+                if (soundPath != null && !soundPath.isEmpty()) {
+                    audioManager.playSoundEffect(soundPath);
                 }
                 action.handle(event);
             });
@@ -267,5 +317,6 @@ public class LobbyScreen {
             videoPlayer.stop();
             videoPlayer.dispose();
         }
+        // DON'T stop music - it should continue to other screens
     }
 }

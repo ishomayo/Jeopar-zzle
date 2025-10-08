@@ -1,3 +1,5 @@
+import java.io.File;
+
 import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -17,7 +19,7 @@ public class HowToScreen {
     private Pane root;
     private Stage stage;
     private MediaPlayer videoPlayer;
-    private static AudioPlayer player = new AudioPlayer();
+    private AudioManager audioManager = AudioManager.getInstance();
     private static boolean isSFXOn = true;
     private Runnable onBackToLobby;
 
@@ -43,14 +45,25 @@ public class HowToScreen {
         fadeIn.play();
     }
 
+    private static final int MAX_RETRIES = 3;
+    private int retryCount = 0;
+    private MediaView mediaView; // keep only one
+
     private void setupVideoBackground() {
         try {
             System.out.println("Looking for HowTo video at: " + Constants.HOWTO_VIDEO);
             java.net.URL resourceUrl = getClass().getResource(Constants.HOWTO_VIDEO);
             System.out.println("HowTo video URL: " + resourceUrl);
 
+            // Fallback to filesystem path if not found in resources
             if (resourceUrl == null) {
-                throw new Exception("HowTo video resource not found: " + Constants.HOWTO_VIDEO);
+                File file = new File(Constants.HOWTO_VIDEO);
+                if (file.exists()) {
+                    resourceUrl = file.toURI().toURL();
+                    System.out.println("Loaded HowTo video from file path instead.");
+                } else {
+                    throw new Exception("HowTo video not found: " + Constants.HOWTO_VIDEO);
+                }
             }
 
             Media media = new Media(resourceUrl.toExternalForm());
@@ -58,22 +71,50 @@ public class HowToScreen {
 
             videoPlayer.setOnError(() -> {
                 System.out.println("HowTo MediaPlayer error: " + videoPlayer.getError());
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    System.out.println("Retrying HowTo video load... Attempt " + retryCount + " of " + MAX_RETRIES);
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(1000);
+                            Platform.runLater(this::setupVideoBackground);
+                        } catch (InterruptedException ignored) {
+                        }
+                    }).start();
+                } else {
+                    System.out.println("Max retries reached. Falling back to background color.");
+                    root.setStyle("-fx-background-color: linear-gradient(to bottom right, #34495e, #2c3e50);");
+                }
             });
 
             videoPlayer.setOnReady(() -> {
+                retryCount = 0;
                 System.out.println("HowTo video loaded successfully!");
                 System.out.println("Video duration: " + media.getDuration());
+
+                // Fade-in transition for the background video
+                FadeTransition fadeIn = new FadeTransition(Duration.seconds(1.5), mediaView);
+                fadeIn.setFromValue(0);
+                fadeIn.setToValue(1);
+                fadeIn.play();
             });
 
-            // Loop the how-to video
             videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
 
-            MediaView mediaView = new MediaView(videoPlayer);
-            mediaView.setFitWidth(Constants.SCREEN_WIDTH);
-            mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
-            mediaView.setPreserveRatio(false);
+            // ✅ Create the MediaView only once
+            if (mediaView == null) {
+                mediaView = new MediaView(videoPlayer);
+                mediaView.setFitWidth(Constants.SCREEN_WIDTH);
+                mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
+                mediaView.setPreserveRatio(false);
+                mediaView.setOpacity(0);
 
-            root.getChildren().add(mediaView);
+                // Add it behind buttons/UI
+                root.getChildren().add(0, mediaView);
+            } else {
+                mediaView.setMediaPlayer(videoPlayer);
+            }
+
             videoPlayer.play();
 
         } catch (Exception e) {
@@ -92,8 +133,7 @@ public class HowToScreen {
                 20, 20, // Top-left position
                 Constants.BACK_BUTTON_WIDTH, Constants.BACK_BUTTON_HEIGHT,
                 Constants.BUTTON_CLICK_SOUND,
-                event -> onBackClicked()
-        );
+                event -> onBackClicked());
 
         root.getChildren().add(backButton);
     }
@@ -117,9 +157,9 @@ public class HowToScreen {
             imageView.setFitHeight(height);
             button.setGraphic(imageView);
         } else {
-            // Fallback button style if no image
             button.setText("← Back");
-            button.setStyle("-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-border-radius: 5;");
+            button.setStyle(
+                    "-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-border-radius: 5;");
         }
 
         button.setStyle(button.getStyle() + "-fx-background-color: transparent; -fx-border-color: transparent;");
@@ -137,8 +177,9 @@ public class HowToScreen {
 
         if (action != null) {
             button.setOnAction(event -> {
-                if (soundPath != null && !soundPath.isEmpty() && isSFXOn) {
-                    // player.playSoundEffect(soundPath);
+                // Play click sound using AudioManager
+                if (soundPath != null && !soundPath.isEmpty()) {
+                    audioManager.playSoundEffect(soundPath);
                 }
                 action.handle(event);
             });
@@ -158,7 +199,7 @@ public class HowToScreen {
 
     private void onBackClicked() {
         System.out.println("Back button clicked from HowTo!");
-        
+
         // Fade out transition
         FadeTransition fadeOut = new FadeTransition(Duration.millis(Constants.FADE_DURATION_MS), root);
         fadeOut.setFromValue(1.0);
@@ -185,5 +226,6 @@ public class HowToScreen {
             videoPlayer.stop();
             videoPlayer.dispose();
         }
+        // DON'T stop background music - it continues to lobby
     }
 }
