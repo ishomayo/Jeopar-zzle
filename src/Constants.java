@@ -1,4 +1,3 @@
-
 public class Constants {
 
     // Screen dimensions
@@ -35,6 +34,10 @@ public class Constants {
     public static final String BACK_BUTTON = "/images/back_button.png";
     public static final String BACK_BUTTON_HOVER = "/images/back_button_hover.png";
     public static final String BACK_BUTTON_CLICK = "/images/back_button_click.png";
+
+    public static final String HOME_BUTTON = "/images/back_button.png";
+    public static final String HOME_BUTTON_HOVER = "/images/back_button_hover.png";
+    public static final String HOME_BUTTON_CLICK = "/images/back_button_click.png";
     
     public static final String GAME_BACKGROUND_IMAGE = "/images/game_background.jpg";
 

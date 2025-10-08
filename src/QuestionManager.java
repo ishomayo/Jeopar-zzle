@@ -179,27 +179,27 @@ public class QuestionManager {
 
 
     public Question getQuestionForCategoryAndPoints(String category, int points) {
-        List<Question> categoryQuestions = questionsByCategory.get(category);
+        List<Question> categoryQuestions = questionsByCategory.get(category); //kuha lang lahat ng category and under that category
         if (categoryQuestions != null && !categoryQuestions.isEmpty()) {
             List<Question> matchingQuestions = new ArrayList<>();
-            for (Question q : categoryQuestions) {
+            for (Question q : categoryQuestions) { //filter lang by points inside category
                 if (q.getPointValue() == points) {
                     matchingQuestions.add(q);
                 }
             }
             
             if (!matchingQuestions.isEmpty()) {
-                return matchingQuestions.get(random.nextInt(matchingQuestions.size()));
+                return matchingQuestions.get(random.nextInt(matchingQuestions.size())); // random match na itey prevent same questions to be asked
             }
         }
         
-        for (Question q : allQuestions) {
+        for (Question q : allQuestions) { // fallback
             if (q.getPointValue() == points) {
                 return q;
             }
         }
 
-        return allQuestions.isEmpty() ? null : allQuestions.get(0);
+        return allQuestions.isEmpty() ? null : allQuestions.get(0); //fallback
     }
     
     public Question getRandomQuestion() {

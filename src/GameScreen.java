@@ -3,6 +3,8 @@ import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
@@ -209,10 +211,14 @@ public class GameScreen {
         sidebar.setAlignment(Pos.TOP_CENTER);
         sidebar.setPadding(new Insets(10));
 
-        Button homeBtn = new Button("🏠");
-        homeBtn.setStyle(
-                "-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-size: 20px; -fx-pref-width: 50px; -fx-pref-height: 50px;");
-        homeBtn.setOnAction(e -> goBackToLobby());
+        Button homeBtn = createImageButton(
+                loadImage(Constants.HOME_BUTTON),
+                loadImage(Constants.HOME_BUTTON_HOVER),
+                loadImage(Constants.HOME_BUTTON_CLICK),
+                (Constants.SCREEN_WIDTH - Constants.BUTTON_WIDTH) / 2, 200,
+                30, 30,
+                Constants.BUTTON_CLICK_SOUND,
+                event -> goBackToLobby());
 
         // placeholder pa lang di p nagana
         Button musicBtn = new Button("🎵");
@@ -225,6 +231,62 @@ public class GameScreen {
 
         sidebar.getChildren().addAll(homeBtn, musicBtn, soundBtn);
         return sidebar;
+    }
+
+    private Image loadImage(String path) {
+        try {
+            return new Image(getClass().getResourceAsStream(path));
+        } catch (Exception e) {
+            System.out.println("Image not found: " + path);
+            return null;
+        }
+    }
+
+    private Button createImageButton(Image image, Image hoverImage, Image clickImage, double x, double y,
+            double width, double height, String soundPath, EventHandler<ActionEvent> action) {
+        Button button = new Button();
+
+        if (image != null) {
+            ImageView imageView = new ImageView(image);
+            imageView.setFitWidth(width);
+            imageView.setFitHeight(height);
+            button.setGraphic(imageView);
+        } else {
+            button.setText("Button");
+            button.setStyle(
+                    "-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+        }
+
+        button.setStyle(button.getStyle() + "-fx-background-color: transparent; -fx-border-color: transparent;");
+        button.setLayoutX(x);
+        button.setLayoutY(y);
+        button.setPrefWidth(width);
+        button.setPrefHeight(height);
+
+        if (hoverImage != null && clickImage != null) {
+            button.setOnMouseEntered(event -> setButtonGraphic(button, hoverImage, width, height));
+            button.setOnMouseExited(event -> setButtonGraphic(button, image, width, height));
+            button.setOnMousePressed(event -> setButtonGraphic(button, clickImage, width, height));
+            button.setOnMouseReleased(event -> setButtonGraphic(button, image, width, height));
+        }
+
+        if (action != null) {
+            button.setOnAction(event -> {
+                
+                action.handle(event);
+            });
+        }
+
+        return button;
+    }
+
+    private void setButtonGraphic(Button button, Image image, double width, double height) {
+        if (image != null) {
+            ImageView imageView = new ImageView(image);
+            imageView.setFitWidth(width);
+            imageView.setFitHeight(height);
+            button.setGraphic(imageView);
+        }
     }
 
     private GridPane createGameBoard() {
@@ -290,13 +352,13 @@ public class GameScreen {
         scoreLabel.setPrefWidth(180);
 
         answerField = new TextField();
-        answerField.setPromptText("Guess the image...");
+        answerField.setPromptText("Type here...");
         answerField.setStyle("-fx-font-size: 14px; -fx-padding: 10px;");
         answerField.setPrefWidth(180);
         
         answerField.setOnAction(e -> checkImageGuess());
 
-        Button guessBtn = new Button("Type here..");
+        Button guessBtn = new Button("Guess the image...");
         guessBtn.setStyle(
                 "-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-font-size: 12px; -fx-font-weight: bold; -fx-padding: 15px; -fx-background-radius: 5;");
         guessBtn.setPrefWidth(180);
