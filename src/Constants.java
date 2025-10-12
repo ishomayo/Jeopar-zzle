@@ -38,7 +38,21 @@ public class Constants {
     public static final String HOME_BUTTON = "/images/back_button.png";
     public static final String HOME_BUTTON_HOVER = "/images/back_button_hover.png";
     public static final String HOME_BUTTON_CLICK = "/images/back_button_click.png";
+
+    public static final String MUSIC_BUTTON = "/images/music_button.png";
+    public static final String MUSIC_BUTTON_HOVER = "/images/music_button_hover.png";
+    public static final String MUSIC_BUTTON_CLICK = "/images/music_button_click.png";
+    public static final String MUSIC_BUTTON_DISABLE = "/images/music_button_click_disable.png";
+
+    public static final String SOUND_BUTTON = "/images/sound_button.png";
+    public static final String SOUND_BUTTON_HOVER = "/images/sound_button_hover.png";
+    public static final String SOUND_BUTTON_CLICK = "/images/sound_button_click.png";
+    public static final String SOUND_BUTTON_DISABLE_CLICK = "/images/sound_button_click_disable.png";
+    public static final String SOUND_BUTTON_DISABLE_HOVER = "/images/sound_button_hover_disable.png";
+    public static final String SOUND_BUTTON_DISABLE = "/images/sound_button_disable.png";
     
+    public static final String GAME_BACKGROUND_VID = "/videos/game_bg.mp4";
+
     public static final String GAME_BACKGROUND_IMAGE = "/images/game_background.png";
 
     // Sound resources

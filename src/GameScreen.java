@@ -9,7 +9,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
@@ -17,9 +16,9 @@ import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
+import javafx.scene.media.MediaView;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import java.util.Random;
@@ -75,10 +74,15 @@ public class GameScreen {
     private boolean[][] questionAnswered = new boolean[8][6];
     private Runnable onBackToLobby;
 
-    
     private AudioManager audioManager = AudioManager.getInstance();
     private Button musicBtn;
     private Button soundBtn;
+
+    // Video background variables
+    private MediaPlayer videoPlayer;
+    private MediaView mediaView;
+    private int retryCount = 0;
+    private static final int MAX_RETRIES = 3;
 
     public GameScreen(Stage stage) {
         this.stage = stage;
@@ -115,7 +119,16 @@ public class GameScreen {
     private void initializePhotoPuzzle() {
         System.out.println("=== INITIALIZING PHOTO PUZZLE ===");
 
-        String[] imageOptions = { "robot.png", "artificialintelligence.png" };
+        String[] imageOptions = {
+                "robot.png",
+                "ai.png",
+                "computer.png",
+                "network.png",
+                "cybersecurity.png",
+                "database.png",
+                "programming.png",
+        };
+
         String selectedImage = imageOptions[random.nextInt(imageOptions.length)];
         currentImageName = selectedImage.replace(".png", "").toUpperCase();
 
@@ -197,11 +210,8 @@ public class GameScreen {
         root = new BorderPane();
         root.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
 
-        root.setStyle(
-                "-fx-background-image: url('" + Constants.GAME_BACKGROUND_IMAGE + "');" +
-                        "-fx-background-size: " + Constants.SCREEN_WIDTH + "px " + Constants.SCREEN_HEIGHT + "px;" +
-                        "-fx-background-position: center center;" +
-                        "-fx-background-repeat: no-repeat;");
+        // Setup video background instead of static image
+        setupVideoBackground();
 
         VBox leftSidebar = createLeftSidebar();
         root.setLeft(leftSidebar);
@@ -218,6 +228,88 @@ public class GameScreen {
         createQuestionModal();
     }
 
+    private void setupVideoBackground() {
+        try {
+            System.out.println("Looking for game background video at: " + Constants.GAME_BACKGROUND_IMAGE);
+
+            java.net.URL resourceUrl = getClass().getResource(Constants.GAME_BACKGROUND_VID);
+
+            if (resourceUrl == null) {
+                System.out.println("Game video not found, trying image fallback...");
+                // Fallback to image
+                root.setStyle(
+                        "-fx-background-image: url('" + Constants.GAME_BACKGROUND_IMAGE + "');" +
+                                "-fx-background-size: " + Constants.SCREEN_WIDTH + "px " + Constants.SCREEN_HEIGHT
+                                + "px;" +
+                                "-fx-background-position: center center;" +
+                                "-fx-background-repeat: no-repeat;");
+                return;
+            }
+
+            Media media = new Media(resourceUrl.toExternalForm());
+            videoPlayer = new MediaPlayer(media);
+
+            videoPlayer.setOnError(() -> {
+                System.out.println("Game video MediaPlayer error: " + videoPlayer.getError());
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    System.out.println("Retrying game video load... Attempt " + retryCount + " of " + MAX_RETRIES);
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(100);
+                            Platform.runLater(this::setupVideoBackground);
+                        } catch (InterruptedException ignored) {
+                        }
+                    }).start();
+                } else {
+                    System.out.println("Max retries reached. Falling back to image background.");
+                    root.setStyle(
+                            "-fx-background-image: url('" + Constants.GAME_BACKGROUND_IMAGE + "');" +
+                                    "-fx-background-size: " + Constants.SCREEN_WIDTH + "px " + Constants.SCREEN_HEIGHT
+                                    + "px;" +
+                                    "-fx-background-position: center center;" +
+                                    "-fx-background-repeat: no-repeat;");
+                }
+            });
+
+            videoPlayer.setOnReady(() -> {
+                retryCount = 0;
+                System.out.println("Game video loaded successfully!");
+                System.out.println("Video duration: " + media.getDuration());
+            });
+
+            videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
+
+            // Create MediaView only once
+            if (mediaView == null) {
+                mediaView = new MediaView(videoPlayer);
+                mediaView.setFitWidth(Constants.SCREEN_WIDTH);
+                mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
+                mediaView.setPreserveRatio(false);
+
+                // Add video behind all UI elements
+                if (!root.getChildren().contains(mediaView)) {
+                    root.getChildren().add(0, mediaView);
+                    mediaView.toBack();
+                }
+            } else {
+                mediaView.setMediaPlayer(videoPlayer);
+            }
+
+            videoPlayer.play();
+
+        } catch (Exception e) {
+            System.out.println("Error setting up game video background: " + e.getMessage());
+            e.printStackTrace();
+            // Fallback to image
+            root.setStyle(
+                    "-fx-background-image: url('" + Constants.GAME_BACKGROUND_IMAGE + "');" +
+                            "-fx-background-size: " + Constants.SCREEN_WIDTH + "px " + Constants.SCREEN_HEIGHT + "px;" +
+                            "-fx-background-position: center center;" +
+                            "-fx-background-repeat: no-repeat;");
+        }
+    }
+
     private VBox createLeftSidebar() {
         VBox sidebar = new VBox(20);
         sidebar.setPrefWidth(40);
@@ -228,40 +320,72 @@ public class GameScreen {
                 loadImage(Constants.HOME_BUTTON),
                 loadImage(Constants.HOME_BUTTON_HOVER),
                 loadImage(Constants.HOME_BUTTON_CLICK),
-                (Constants.SCREEN_WIDTH - Constants.BUTTON_WIDTH) / 2, 200,
+                0, 0,
                 30, 30,
                 Constants.BUTTON_CLICK_SOUND,
                 event -> goBackToLobby());
 
-        // Music toggle button
-        musicBtn = new Button(audioManager.isMusicEnabled() ? "🎵" : "🔇");
-        musicBtn.setStyle(
-                "-fx-background-color: " + (audioManager.isMusicEnabled() ? "#27ae60" : "#7f8c8d") +
-                        "; -fx-text-fill: white; -fx-font-size: 20px; -fx-pref-width: 50px; -fx-pref-height: 50px; -fx-cursor: hand;");
-        musicBtn.setOnAction(e -> {
-            audioManager.toggleMusic();
-            musicBtn.setText(audioManager.isMusicEnabled() ? "🎵" : "🔇");
-            musicBtn.setStyle(
-                    "-fx-background-color: " + (audioManager.isMusicEnabled() ? "#27ae60" : "#7f8c8d") +
-                            "; -fx-text-fill: white; -fx-font-size: 20px; -fx-pref-width: 50px; -fx-pref-height: 50px; -fx-cursor: hand;");
-        });
+        // Music toggle button - starts with current state
+        musicBtn = createImageButton(
+                loadImage(audioManager.isMusicEnabled() ? Constants.MUSIC_BUTTON : Constants.MUSIC_BUTTON_DISABLE),
+                loadImage(audioManager.isMusicEnabled() ? Constants.MUSIC_BUTTON_HOVER : Constants.MUSIC_BUTTON_HOVER),
+                loadImage(audioManager.isMusicEnabled() ? Constants.MUSIC_BUTTON_CLICK : Constants.MUSIC_BUTTON_CLICK),
+                0, 0,
+                30, 30,
+                Constants.BUTTON_CLICK_SOUND,
+                event -> {
+                    audioManager.toggleMusic();
+                    updateMusicButton();
+                });
 
-        // Sound effects toggle button
-        soundBtn = new Button(audioManager.isSFXEnabled() ? "🔊" : "🔈");
-        soundBtn.setStyle(
-                "-fx-background-color: " + (audioManager.isSFXEnabled() ? "#27ae60" : "#7f8c8d") +
-                        "; -fx-text-fill: white; -fx-font-size: 20px; -fx-pref-width: 50px; -fx-pref-height: 50px; -fx-cursor: hand;");
-        soundBtn.setOnAction(e -> {
-            audioManager.playSoundEffect(Constants.BUTTON_CLICK_SOUND); // Play before toggling
-            audioManager.toggleSFX();
-            soundBtn.setText(audioManager.isSFXEnabled() ? "🔊" : "🔈");
-            soundBtn.setStyle(
-                    "-fx-background-color: " + (audioManager.isSFXEnabled() ? "#27ae60" : "#7f8c8d") +
-                            "; -fx-text-fill: white; -fx-font-size: 20px; -fx-pref-width: 50px; -fx-pref-height: 50px; -fx-cursor: hand;");
-        });
+        // Sound effects toggle button - starts with current state
+        soundBtn = createImageButton(
+                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON : Constants.SOUND_BUTTON),
+                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON_HOVER : Constants.SOUND_BUTTON_HOVER),
+                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON_CLICK : Constants.SOUND_BUTTON_CLICK),
+                0, 0,
+                30, 30,
+                Constants.BUTTON_CLICK_SOUND,
+                event -> {
+                    audioManager.playSoundEffect(Constants.BUTTON_CLICK_SOUND);
+                    audioManager.toggleSFX();
+                    updateSoundButton();
+                });
 
         sidebar.getChildren().addAll(homeBtn, musicBtn, soundBtn);
         return sidebar;
+    }
+
+    // Helper method to update music button graphics
+    private void updateMusicButton() {
+        boolean isEnabled = audioManager.isMusicEnabled();
+        Image normalImage = loadImage(isEnabled ? Constants.MUSIC_BUTTON : Constants.MUSIC_BUTTON_DISABLE);
+        Image hoverImage = loadImage(isEnabled ? Constants.MUSIC_BUTTON_HOVER : Constants.MUSIC_BUTTON_HOVER);
+        Image clickImage = loadImage(isEnabled ? Constants.MUSIC_BUTTON_CLICK : Constants.MUSIC_BUTTON_CLICK);
+
+        setButtonGraphic(musicBtn, normalImage, 30, 30);
+
+        // Re-apply hover effects
+        musicBtn.setOnMouseEntered(event -> setButtonGraphic(musicBtn, hoverImage, 30, 30));
+        musicBtn.setOnMouseExited(event -> setButtonGraphic(musicBtn, normalImage, 30, 30));
+        musicBtn.setOnMousePressed(event -> setButtonGraphic(musicBtn, clickImage, 30, 30));
+        musicBtn.setOnMouseReleased(event -> setButtonGraphic(musicBtn, normalImage, 30, 30));
+    }
+
+    // Helper method to update sound button graphics
+    private void updateSoundButton() {
+        boolean isEnabled = audioManager.isSFXEnabled();
+        Image normalImage = loadImage(isEnabled ? Constants.SOUND_BUTTON : Constants.SOUND_BUTTON_DISABLE);
+        Image hoverImage = loadImage(isEnabled ? Constants.SOUND_BUTTON_HOVER : Constants.SOUND_BUTTON_DISABLE_HOVER);
+        Image clickImage = loadImage(isEnabled ? Constants.SOUND_BUTTON_CLICK : Constants.SOUND_BUTTON_DISABLE_CLICK);
+
+        setButtonGraphic(soundBtn, normalImage, 30, 30);
+
+        // Re-apply hover effects
+        soundBtn.setOnMouseEntered(event -> setButtonGraphic(soundBtn, hoverImage, 30, 30));
+        soundBtn.setOnMouseExited(event -> setButtonGraphic(soundBtn, normalImage, 30, 30));
+        soundBtn.setOnMousePressed(event -> setButtonGraphic(soundBtn, clickImage, 30, 30));
+        soundBtn.setOnMouseReleased(event -> setButtonGraphic(soundBtn, normalImage, 30, 30));
     }
 
     private Image loadImage(String path) {
@@ -409,12 +533,35 @@ public class GameScreen {
 
         System.out.println("Image guess: '" + guess + "' vs correct: '" + correctAnswer + "'");
 
-        if (guess.equals(correctAnswer) ||
-                (correctAnswer.equals("artificialintelligence")
-                        && (guess.equals("artificial intelligence") || guess.equals("ai")))
-                ||
-                (correctAnswer.equals("robot") && guess.equals("robot"))) {
+        // Check for exact match or common variations
+        boolean isCorrect = false;
 
+        if (guess.equals(correctAnswer)) {
+            isCorrect = true;
+        } else {
+            // Handle common variations and alternate names
+            switch (correctAnswer) {
+                case "artificialintelligence":
+                    isCorrect = guess.equals("artificial intelligence") || guess.equals("ai");
+                    break;
+                case "machinelearning":
+                    isCorrect = guess.equals("machine learning") || guess.equals("ml");
+                    break;
+                case "virtualreality":
+                    isCorrect = guess.equals("virtual reality") || guess.equals("vr");
+                    break;
+                case "cybersecurity":
+                    isCorrect = guess.equals("cyber security");
+                    break;
+                // Add more cases as needed for other compound words
+                default:
+                    // Check if guess matches when spaces are removed
+                    isCorrect = guess.replace(" ", "").equals(correctAnswer);
+                    break;
+            }
+        }
+
+        if (isCorrect) {
             System.out.println("IMAGE GUESS CORRECT!");
 
             int bonusPoints = 2000;
@@ -482,20 +629,18 @@ public class GameScreen {
     }
 
     private void createQuestionModal() {
-        // Create semi-transparent black overlay
         questionOverlay = new Pane();
         questionOverlay.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
-        questionOverlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6);"); // 40% black
+        questionOverlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6);");
         questionOverlay.setVisible(false);
 
-        // Create the question modal
         questionModal = new VBox(15);
         questionModal.setAlignment(Pos.CENTER);
         questionModal.setPadding(new Insets(25));
         questionModal.setStyle(
                 "-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 10, 0, 0, 0);");
-        questionModal.setPrefSize(600, 420);
-        questionModal.setMaxSize(600, 420);
+        questionModal.setPrefSize(600, 520);
+        questionModal.setMaxSize(600, 520);
         questionModal.setVisible(false);
 
         questionValueLabel = new Label("100");
@@ -519,12 +664,73 @@ public class GameScreen {
             answerButtons[i].setStyle(
                     "-fx-background-color: #ecf0f1; -fx-text-fill: #2c3e50; -fx-font-size: 11px; -fx-padding: 12px; -fx-background-radius: 5; -fx-alignment: center-left; -fx-wrap-text: true;");
             answerButtons[i].setPrefSize(270, 65);
+            answerButtons[i].setMinHeight(65);
+            answerButtons[i].setMaxHeight(65);
             answerButtons[i].setMaxWidth(270);
+            answerButtons[i].setWrapText(true);
 
             final int answerIndex = i;
             answerButtons[i].setOnAction(e -> selectAnswer(answerIndex));
 
-            answerGrid.add(answerButtons[i], i % 2, i / 2);
+            // Expand button on hover like B and D in the image
+            final Button btn = answerButtons[i];
+            final int row = i / 2;
+            final int col = i % 2;
+
+            btn.setOnMouseEntered(e -> {
+                if (btn.isVisible()) {
+                    // Expand to show full text
+                    btn.setStyle(
+                            "-fx-background-color: #3498db; " +
+                                    "-fx-text-fill: white; " +
+                                    "-fx-font-size: 12px; " +
+                                    "-fx-font-weight: bold; " +
+                                    "-fx-padding: 15px; " +
+                                    "-fx-background-radius: 5; " +
+                                    "-fx-alignment: center-left; " +
+                                    "-fx-wrap-text: true;");
+
+                    // Allow height to expand dynamically
+                    btn.setMinHeight(Region.USE_PREF_SIZE);
+                    btn.setPrefHeight(Region.USE_COMPUTED_SIZE);
+                    btn.setMaxHeight(Double.MAX_VALUE);
+
+                    // Bring to front
+                    btn.toFront();
+                }
+            });
+
+            btn.setOnMouseExited(e -> {
+                if (btn.isVisible()) {
+                    // Return to normal size
+                    btn.setPrefHeight(65);
+                    btn.setMinHeight(65);
+                    btn.setMaxHeight(65);
+
+                    // Restore style based on selection
+                    if (selectedAnswerIndex != answerIndex) {
+                        btn.setStyle(
+                                "-fx-background-color: #ecf0f1; " +
+                                        "-fx-text-fill: #2c3e50; " +
+                                        "-fx-font-size: 11px; " +
+                                        "-fx-padding: 12px; " +
+                                        "-fx-background-radius: 5; " +
+                                        "-fx-alignment: center-left; " +
+                                        "-fx-wrap-text: true;");
+                    } else {
+                        btn.setStyle(
+                                "-fx-background-color: #f39c12; " +
+                                        "-fx-text-fill: white; " +
+                                        "-fx-font-size: 11px; " +
+                                        "-fx-padding: 12px; " +
+                                        "-fx-background-radius: 5; " +
+                                        "-fx-alignment: center-left; " +
+                                        "-fx-wrap-text: true;");
+                    }
+                }
+            });
+
+            answerGrid.add(answerButtons[i], col, row);
         }
 
         Button enterBtn = new Button("ENTER");
@@ -539,7 +745,6 @@ public class GameScreen {
 
         questionModal.getChildren().addAll(questionValueLabel, questionText, answerGrid, enterBtn, questionTimer);
 
-        // Add overlay first (behind), then modal (in front)
         mainContainer.getChildren().addAll(questionOverlay, questionModal);
     }
 
@@ -754,19 +959,108 @@ public class GameScreen {
 
     private void startQuestionTimer() {
         questionTimer.setProgress(1.0);
+        questionTimeLeft = 15.0;
 
         questionTimerAnimation = new Timeline(new KeyFrame(Duration.millis(100), e -> {
             questionTimeLeft -= 0.1;
             double progress = questionTimeLeft / 15.0;
             questionTimer.setProgress(Math.max(0, progress));
 
-            if (questionTimeLeft <= 0) {
-                System.out.println("Time's up! Auto-submitting wrong answer.");
-                closeQuestionModal(false);
+            if (questionTimeLeft <= 0.1) {
+                System.out.println("=== TIME'S UP! ===");
+                System.out.println("No answer selected - applying 100 point penalty");
+
+                // Stop the timer
+                if (questionTimerAnimation != null) {
+                    questionTimerAnimation.stop();
+                }
+
+                questionActive = false;
+
+                // Deduct 100 points for timeout
+                int penalty = 100;
+                currentScore = Math.max(0, currentScore - penalty);
+                scoreLabel.setText("SCORE: " + currentScore);
+                System.out.println("Penalty applied: -" + penalty + " points. New score: " + currentScore);
+
+                // Gray out the tile
+                grayOutTile(currentQuestionRow, currentQuestionCol);
+
+                // Mark as answered
+                questionAnswered[currentQuestionRow][currentQuestionCol] = true;
+
+                // Show timeout feedback
+                showTimeoutFeedback();
+
+                // Close modal after a delay
+                Timeline closeDelay = new Timeline(new KeyFrame(Duration.millis(500), event -> {
+                    closeQuestionModalAfterTimeout();
+                }));
+                closeDelay.play();
             }
         }));
-        questionTimerAnimation.setCycleCount(150);
+        questionTimerAnimation.setCycleCount(Timeline.INDEFINITE);
         questionTimerAnimation.play();
+    }
+
+    private void showTimeoutFeedback() {
+        VBox feedbackBox = new VBox(10);
+        feedbackBox.setAlignment(Pos.CENTER);
+        feedbackBox.setPadding(new Insets(30));
+
+        Label timeoutLabel = new Label("TIME'S UP!");
+        timeoutLabel.setStyle(
+                "-fx-font-size: 28px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: #e74c3c;");
+
+        Label penaltyLabel = new Label("-100");
+        penaltyLabel.setStyle(
+                "-fx-font-size: 36px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: #e74c3c;");
+
+        feedbackBox.getChildren().addAll(timeoutLabel, penaltyLabel);
+
+        StackPane feedbackPane = new StackPane(feedbackBox);
+        feedbackPane.setStyle(
+                "-fx-background-color: white; " +
+                        "-fx-background-radius: 15; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 15, 0, 0, 0);");
+        feedbackPane.setPrefSize(300, 200);
+
+        feedbackPane.setOpacity(0);
+        mainContainer.getChildren().add(feedbackPane);
+
+        FadeTransition fadeIn = new FadeTransition(Duration.millis(200), feedbackPane);
+        fadeIn.setFromValue(0.0);
+        fadeIn.setToValue(1.0);
+        fadeIn.play();
+
+        Timeline delay = new Timeline(new KeyFrame(Duration.seconds(1.5), event -> {
+            FadeTransition fadeOut = new FadeTransition(Duration.millis(300), feedbackPane);
+            fadeOut.setFromValue(1.0);
+            fadeOut.setToValue(0.0);
+            fadeOut.setOnFinished(ev -> mainContainer.getChildren().remove(feedbackPane));
+            fadeOut.play();
+        }));
+        delay.play();
+    }
+
+    private void closeQuestionModalAfterTimeout() {
+        // Fade out overlay
+        FadeTransition overlayFadeOut = new FadeTransition(Duration.millis(300), questionOverlay);
+        overlayFadeOut.setFromValue(1.0);
+        overlayFadeOut.setToValue(0.0);
+        overlayFadeOut.setOnFinished(e -> questionOverlay.setVisible(false));
+        overlayFadeOut.play();
+
+        // Fade out modal
+        FadeTransition fadeOut = new FadeTransition(Duration.millis(300), questionModal);
+        fadeOut.setFromValue(1.0);
+        fadeOut.setToValue(0.0);
+        fadeOut.setOnFinished(e -> questionModal.setVisible(false));
+        fadeOut.play();
     }
 
     private void endGame() {
@@ -784,91 +1078,253 @@ public class GameScreen {
     }
 
     private void showGameOverScreen() {
+        // Create semi-transparent overlay
+        Pane overlay = new Pane();
+        overlay.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+        overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
+
         HBox gameOverModal = new HBox(30);
         gameOverModal.setAlignment(Pos.CENTER);
-        gameOverModal.setPadding(new Insets(40));
+        gameOverModal.setPadding(new Insets(50));
         gameOverModal.setStyle(
-                "-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 10, 0, 0, 0);");
-        gameOverModal.setPrefSize(700, 450);
+                "-fx-background-color: linear-gradient(to bottom, #ffffff, #f8f9fa); " +
+                        "-fx-background-radius: 20; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 20, 0, 0, 5);");
+        gameOverModal.setPrefSize(800, 500);
+        gameOverModal.setMaxSize(800, 500);
 
-        VBox leftSide = new VBox(10);
+        // Left side - Image section
+        VBox leftSide = new VBox(15);
         leftSide.setAlignment(Pos.CENTER);
+        leftSide.setPadding(new Insets(20));
+        leftSide.setStyle(
+                "-fx-background-color: #f0f3f5; " +
+                        "-fx-background-radius: 15; " +
+                        "-fx-padding: 20;");
+        leftSide.setPrefWidth(350);
 
         ImageView completePuzzleImage = new ImageView(puzzleImage);
-        completePuzzleImage.setFitWidth(300);
-        completePuzzleImage.setFitHeight(250);
+        completePuzzleImage.setFitWidth(280);
+        completePuzzleImage.setFitHeight(230);
         completePuzzleImage.setPreserveRatio(true);
-        completePuzzleImage.setStyle("-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);");
+        completePuzzleImage.setStyle(
+                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 10, 0, 0, 3); " +
+                        "-fx-background-radius: 10;");
 
-        Label imageLabel = new Label("IMAGE:\n" + currentImageName);
+        Label imageLabel = new Label("IMAGE: " + currentImageName);
         imageLabel.setStyle(
-                "-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50; -fx-text-alignment: center;");
+                "-fx-font-size: 20px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: #2c3e50; " +
+                        "-fx-text-alignment: center;");
 
         leftSide.getChildren().addAll(completePuzzleImage, imageLabel);
 
-        VBox rightSide = new VBox(20);
+        // Right side - Game info and buttons
+        VBox rightSide = new VBox(15);
         rightSide.setAlignment(Pos.CENTER);
-        rightSide.setPrefWidth(300);
+        rightSide.setPrefWidth(350);
 
-        Label timeResult = new Label("TIME: " + String.format("%d:%02d", gameTimeLeft / 60, gameTimeLeft % 60));
-        timeResult.setStyle("-fx-font-size: 18px; -fx-text-fill: #7f8c8d;");
+        // Game Over title
+        Label gameOverTitle = new Label("GAME OVER");
+        gameOverTitle.setStyle(
+                "-fx-font-size: 32px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: #2c3e50;");
 
-        Label scoreResult = new Label("SCORE: " + currentScore);
-        scoreResult.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #f39c12;");
+        // Stats section
+        VBox statsBox = new VBox(10);
+        statsBox.setAlignment(Pos.CENTER);
+        statsBox.setPadding(new Insets(20));
+        statsBox.setStyle(
+                "-fx-background-color: #ecf0f1; " +
+                        "-fx-background-radius: 10;");
 
-        Button newGameBtn = new Button("NEW GAME");
+        Label timeResult = new Label("⏱ TIME: " + String.format("%d:%02d", gameTimeLeft / 60, gameTimeLeft % 60));
+        timeResult.setStyle(
+                "-fx-font-size: 18px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: #34495e;");
+
+        Label scoreResult = new Label("⭐ SCORE: " + currentScore);
+        scoreResult.setStyle(
+                "-fx-font-size: 26px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-text-fill: #f39c12;");
+
+        statsBox.getChildren().addAll(timeResult, scoreResult);
+
+        // Buttons section
+        VBox buttonBox = new VBox(12);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        Button newGameBtn = new Button("🎮 NEW GAME");
         newGameBtn.setStyle(
-                "-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15px 30px; -fx-background-radius: 5;");
-        newGameBtn.setPrefWidth(200);
-        newGameBtn.setOnAction(e -> startNewGame());
+                "-fx-background-color: linear-gradient(to bottom, #2ecc71, #27ae60); " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-padding: 15px 40px; " +
+                        "-fx-background-radius: 10; " +
+                        "-fx-cursor: hand; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);");
+        newGameBtn.setPrefWidth(250);
+        newGameBtn.setOnMouseEntered(e -> newGameBtn.setStyle(
+                "-fx-background-color: linear-gradient(to bottom, #27ae60, #229954); " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-padding: 15px 40px; " +
+                        "-fx-background-radius: 10; " +
+                        "-fx-cursor: hand; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 8, 0, 0, 3);"));
+        newGameBtn.setOnMouseExited(e -> newGameBtn.setStyle(
+                "-fx-background-color: linear-gradient(to bottom, #2ecc71, #27ae60); " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-padding: 15px 40px; " +
+                        "-fx-background-radius: 10; " +
+                        "-fx-cursor: hand; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);"));
+        newGameBtn.setOnAction(e -> {
+            audioManager.playSoundEffect(Constants.BUTTON_CLICK_SOUND);
+            startNewGame();
+        });
 
-        Button exitBtn = new Button("EXIT");
+        Button exitBtn = new Button("HOME");
         exitBtn.setStyle(
-                "-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 15px 30px; -fx-background-radius: 5;");
-        exitBtn.setPrefWidth(200);
-        exitBtn.setOnAction(e -> goBackToLobby());
+                "-fx-background-color: linear-gradient(to bottom, #e74c3c, #c0392b); " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-padding: 15px 40px; " +
+                        "-fx-background-radius: 10; " +
+                        "-fx-cursor: hand; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);");
+        exitBtn.setPrefWidth(250);
+        exitBtn.setOnMouseEntered(e -> exitBtn.setStyle(
+                "-fx-background-color: linear-gradient(to bottom, #c0392b, #a93226); " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-padding: 15px 40px; " +
+                        "-fx-background-radius: 10; " +
+                        "-fx-cursor: hand; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 8, 0, 0, 3);"));
+        exitBtn.setOnMouseExited(e -> exitBtn.setStyle(
+                "-fx-background-color: linear-gradient(to bottom, #e74c3c, #c0392b); " +
+                        "-fx-text-fill: white; " +
+                        "-fx-font-size: 16px; " +
+                        "-fx-font-weight: bold; " +
+                        "-fx-padding: 15px 40px; " +
+                        "-fx-background-radius: 10; " +
+                        "-fx-cursor: hand; " +
+                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);"));
+        exitBtn.setOnAction(e -> {
+            audioManager.playSoundEffect(Constants.BUTTON_CLICK_SOUND);
+            goBackToLobby();
+        });
 
-        Label congratsLabel = new Label("CONGRATULATIONS!");
-        congratsLabel.setStyle("-fx-font-size: 16px; -fx-text-fill: #27ae60; -fx-font-weight: bold;");
+        buttonBox.getChildren().addAll(newGameBtn, exitBtn);
+
+        Label congratsLabel = new Label("🎉 CONGRATULATIONS! 🎉");
+        congratsLabel.setStyle(
+                "-fx-font-size: 18px; " +
+                        "-fx-text-fill: #27ae60; " +
+                        "-fx-font-weight: bold;");
 
         rightSide.getChildren().addAll(
-                timeResult,
-                scoreResult,
-                newGameBtn,
-                exitBtn,
+                gameOverTitle,
+                statsBox,
+                buttonBox,
                 congratsLabel);
 
         gameOverModal.getChildren().addAll(leftSide, rightSide);
 
-        mainContainer.getChildren().add(gameOverModal);
+        // Center the modal
+        StackPane modalContainer = new StackPane(gameOverModal);
+        modalContainer.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+
+        // Add overlay first, then modal with fade-in animation
+        overlay.setOpacity(0);
+        gameOverModal.setOpacity(0);
+
+        mainContainer.getChildren().addAll(overlay, modalContainer);
+
+        FadeTransition overlayFade = new FadeTransition(Duration.millis(300), overlay);
+        overlayFade.setFromValue(0.0);
+        overlayFade.setToValue(1.0);
+        overlayFade.play();
+
+        FadeTransition modalFade = new FadeTransition(Duration.millis(400), gameOverModal);
+        modalFade.setFromValue(0.0);
+        modalFade.setToValue(1.0);
+        modalFade.setDelay(Duration.millis(150));
+        modalFade.play();
     }
 
     private void startNewGame() {
         System.out.println("Starting new game...");
 
-        currentScore = 0;
-        gameTimeLeft = 600;
-        questionAnswered = new boolean[8][6];
-        scoreLabel.setText("SCORE: 0");
-        timeLabel.setText("TIME: 10:00");
-        selectedAnswerIndex = -1;
-        currentQuestion = null;
-        questionActive = false;
-        currentQuestionRow = -1;
-        currentQuestionCol = -1;
+        // Fade out the game over modal and overlay
+        if (mainContainer.getChildren().size() > 1) {
+            // Get the overlay and modal (last two children)
+            int size = mainContainer.getChildren().size();
+            javafx.scene.Node overlay = mainContainer.getChildren().get(size - 2);
+            javafx.scene.Node modal = mainContainer.getChildren().get(size - 1);
 
-        if (mainContainer.getChildren().size() > 2) {
-            mainContainer.getChildren().remove(mainContainer.getChildren().size() - 1);
+            FadeTransition overlayFadeOut = new FadeTransition(Duration.millis(300), overlay);
+            overlayFadeOut.setFromValue(1.0);
+            overlayFadeOut.setToValue(0.0);
+
+            FadeTransition modalFadeOut = new FadeTransition(Duration.millis(300), modal);
+            modalFadeOut.setFromValue(1.0);
+            modalFadeOut.setToValue(0.0);
+
+            modalFadeOut.setOnFinished(event -> {
+                // Remove overlay and modal after fade out
+                mainContainer.getChildren().remove(size - 2, size);
+
+                // Reset game state
+                currentScore = 0;
+                gameTimeLeft = 600;
+                questionAnswered = new boolean[8][6];
+                scoreLabel.setText("SCORE: 0");
+                timeLabel.setText("TIME: 10:00");
+                selectedAnswerIndex = -1;
+                currentQuestion = null;
+                questionActive = false;
+                currentQuestionRow = -1;
+                currentQuestionCol = -1;
+
+                resetPuzzleAndButtons();
+                initializePhotoPuzzle();
+
+                // Fade out old board
+                FadeTransition boardFadeOut = new FadeTransition(Duration.millis(300), gameBoard);
+                boardFadeOut.setFromValue(1.0);
+                boardFadeOut.setToValue(0.0);
+                boardFadeOut.setOnFinished(e -> {
+                    // Create new board
+                    gameBoard = createGameBoard();
+                    gameBoard.setOpacity(0);
+                    root.setCenter(gameBoard);
+
+                    // Fade in new board
+                    FadeTransition boardFadeIn = new FadeTransition(Duration.millis(400), gameBoard);
+                    boardFadeIn.setFromValue(0.0);
+                    boardFadeIn.setToValue(1.0);
+                    boardFadeIn.play();
+                });
+                boardFadeOut.play();
+
+                startGameTimer();
+            });
+
+            overlayFadeOut.play();
+            modalFadeOut.play();
         }
-
-        resetPuzzleAndButtons();
-
-        initializePhotoPuzzle();
-
-        gameBoard = createGameBoard();
-        root.setCenter(gameBoard);
-
-        startGameTimer();
     }
 
     private void resetPuzzleAndButtons() {
@@ -919,6 +1375,10 @@ public class GameScreen {
         }
         if (questionTimerAnimation != null) {
             questionTimerAnimation.stop();
+        }
+        if (videoPlayer != null) {
+            videoPlayer.stop();
+            videoPlayer.dispose();
         }
     }
 }

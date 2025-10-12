@@ -24,6 +24,9 @@ public class LobbyScreen {
     private AudioManager audioManager = AudioManager.getInstance();
     private static boolean isSFXOn = true;
 
+    private Button musicBtn;
+    private Button soundBtn;
+
     public LobbyScreen(Stage stage) {
         this.stage = stage;
         initializeUI();
@@ -41,6 +44,75 @@ public class LobbyScreen {
 
         // Create buttons
         createButtons();
+
+        createAudioControls();
+    }
+
+    private void createAudioControls() {
+        // Music toggle button - starts with current state
+        musicBtn = createImageButton(
+                loadImage(audioManager.isMusicEnabled() ? Constants.MUSIC_BUTTON : Constants.MUSIC_BUTTON_DISABLE),
+                loadImage(Constants.MUSIC_BUTTON_HOVER),
+                loadImage(Constants.MUSIC_BUTTON_CLICK),
+                Constants.SCREEN_WIDTH - 70, // 20px from right edge
+                Constants.SCREEN_HEIGHT - 100, // Above sound button
+                25, 25,
+                Constants.BUTTON_CLICK_SOUND,
+                event -> {
+                    audioManager.toggleMusic();
+                    updateMusicButton();
+                });
+
+        // Sound effects toggle button - starts with current state
+        soundBtn = createImageButton(
+                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON : Constants.SOUND_BUTTON_DISABLE),
+                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON_HOVER
+                        : Constants.SOUND_BUTTON_DISABLE_HOVER),
+                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON_CLICK
+                        : Constants.SOUND_BUTTON_DISABLE_CLICK),
+                Constants.SCREEN_WIDTH - 70, // 20px from right edge
+                Constants.SCREEN_HEIGHT - 70, // 20px from bottom
+                25, 25,
+                Constants.BUTTON_CLICK_SOUND,
+                event -> {
+                    audioManager.playSoundEffect(Constants.BUTTON_CLICK_SOUND);
+                    audioManager.toggleSFX();
+                    updateSoundButton();
+                });
+
+        root.getChildren().addAll(musicBtn, soundBtn);
+    }
+
+    // Helper method to update music button graphics
+    private void updateMusicButton() {
+        boolean isEnabled = audioManager.isMusicEnabled();
+        Image normalImage = loadImage(isEnabled ? Constants.MUSIC_BUTTON : Constants.MUSIC_BUTTON_DISABLE);
+        Image hoverImage = loadImage(Constants.MUSIC_BUTTON_HOVER);
+        Image clickImage = loadImage(Constants.MUSIC_BUTTON_CLICK);
+
+        setButtonGraphic(musicBtn, normalImage, 25, 25);
+
+        // Re-apply hover effects
+        musicBtn.setOnMouseEntered(event -> setButtonGraphic(musicBtn, hoverImage, 25, 25));
+        musicBtn.setOnMouseExited(event -> setButtonGraphic(musicBtn, normalImage, 25, 25));
+        musicBtn.setOnMousePressed(event -> setButtonGraphic(musicBtn, clickImage, 25, 25));
+        musicBtn.setOnMouseReleased(event -> setButtonGraphic(musicBtn, normalImage, 25, 25));
+    }
+
+    // Helper method to update sound button graphics
+    private void updateSoundButton() {
+        boolean isEnabled = audioManager.isSFXEnabled();
+        Image normalImage = loadImage(isEnabled ? Constants.SOUND_BUTTON : Constants.SOUND_BUTTON_DISABLE);
+        Image hoverImage = loadImage(isEnabled ? Constants.SOUND_BUTTON_HOVER : Constants.SOUND_BUTTON_DISABLE_HOVER);
+        Image clickImage = loadImage(isEnabled ? Constants.SOUND_BUTTON_CLICK : Constants.SOUND_BUTTON_DISABLE_CLICK);
+
+        setButtonGraphic(soundBtn, normalImage, 25, 25);
+
+        // Re-apply hover effects
+        soundBtn.setOnMouseEntered(event -> setButtonGraphic(soundBtn, hoverImage, 25, 25));
+        soundBtn.setOnMouseExited(event -> setButtonGraphic(soundBtn, normalImage, 25, 25));
+        soundBtn.setOnMousePressed(event -> setButtonGraphic(soundBtn, clickImage, 25, 25));
+        soundBtn.setOnMouseReleased(event -> setButtonGraphic(soundBtn, normalImage, 25, 25));
     }
 
     private static final int MAX_RETRIES = 3;
@@ -77,7 +149,7 @@ public class LobbyScreen {
                     // Retry safely after a short delay
                     new Thread(() -> {
                         try {
-                            Thread.sleep(300);
+                            Thread.sleep(100);
                             javafx.application.Platform.runLater(this::setupVideoBackground);
                         } catch (InterruptedException ignored) {
                         }
