@@ -1,31 +1,42 @@
+import java.io.File;
+
+import javafx.animation.FadeTransition;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.stage.Stage;
-
-import java.io.File;
-
-import javafx.animation.FadeTransition;
-import javafx.scene.Scene;
 import javafx.util.Duration;
 
 public class LobbyScreen {
+    private StackPane mainContainer;
     private Pane root;
     private Stage stage;
     private MediaPlayer videoPlayer;
     private AudioManager audioManager = AudioManager.getInstance();
-    private static boolean isSFXOn = true;
-
-    private Button musicBtn;
-    private Button soundBtn;
+    
+    private VBox settingsModal;
+    private Pane settingsOverlay;
+    private Slider musicVolumeSlider;
+    private Slider sfxVolumeSlider;
+    
+    private static final int MAX_RETRIES = 3;
+    private int retryCount = 0;
+    private MediaView mediaView;
 
     public LobbyScreen(Stage stage) {
         this.stage = stage;
@@ -44,80 +55,204 @@ public class LobbyScreen {
 
         // Create buttons
         createButtons();
-
-        createAudioControls();
+        
+        // Create settings button at top right
+        createSettingsButton();
+        
+        // Wrap in StackPane for modal overlay
+        mainContainer = new StackPane();
+        mainContainer.getChildren().add(root);
+        
+        // Create settings modal (initially hidden)
+        createSettingsModal();
     }
 
-    private void createAudioControls() {
-        // Music toggle button - starts with current state
-        musicBtn = createImageButton(
-                loadImage(audioManager.isMusicEnabled() ? Constants.MUSIC_BUTTON : Constants.MUSIC_BUTTON_DISABLE),
-                loadImage(Constants.MUSIC_BUTTON_HOVER),
-                loadImage(Constants.MUSIC_BUTTON_CLICK),
+    private void createSettingsButton() {
+        Button settingsButton = createImageButton(
+                loadImage(Constants.SETTINGS_BUTTON),
+                loadImage(Constants.SETTINGS_BUTTON_HOVER),
+                loadImage(Constants.SETTINGS_BUTTON_CLICK),
                 Constants.SCREEN_WIDTH - 70, // 20px from right edge
-                Constants.SCREEN_HEIGHT - 100, // Above sound button
-                25, 25,
+                20, // 20px from top
+                50, 50,
                 Constants.BUTTON_CLICK_SOUND,
-                event -> {
-                    audioManager.toggleMusic();
-                    updateMusicButton();
+                event -> openSettingsModal());
+
+        root.getChildren().add(settingsButton);
+    }
+    
+    private void createSettingsModal() {
+        // Semi-transparent black overlay (same as question modal)
+        settingsOverlay = new Pane();
+        settingsOverlay.setPrefSize(Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+        settingsOverlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.6);"); // 60% black like question modal
+        settingsOverlay.setVisible(false);
+        
+        // Compact settings modal
+        settingsModal = new VBox(20);
+        settingsModal.setAlignment(Pos.CENTER);
+        settingsModal.setPadding(new Insets(30));
+        settingsModal.setStyle(
+                "-fx-background-color: white; " +
+                "-fx-background-radius: 10; " +
+                "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.8), 10, 0, 0, 0);");
+        settingsModal.setPrefSize(400, 320); // Smaller, compact size
+        settingsModal.setMaxSize(400, 320);
+        settingsModal.setVisible(false);
+        
+        // Title
+        Label titleLabel = new Label("SETTINGS");
+        titleLabel.setStyle(
+                "-fx-font-size: 24px; " +
+                "-fx-font-weight: bold; " +
+                "-fx-text-fill: #2c3e50;");
+        
+        // Music Volume Section
+        VBox musicSection = createVolumeSection(
+                "Music Volume", 
+                audioManager.isMusicEnabled() ? audioManager.getMusicVolume() : 0.0,
+                value -> {
+                    audioManager.setMusicVolume(value);
+                    if (value > 0 && !audioManager.isMusicEnabled()) {
+                        audioManager.toggleMusic();
+                    } else if (value == 0 && audioManager.isMusicEnabled()) {
+                        audioManager.toggleMusic();
+                    }
                 });
-
-        // Sound effects toggle button - starts with current state
-        soundBtn = createImageButton(
-                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON : Constants.SOUND_BUTTON_DISABLE),
-                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON_HOVER
-                        : Constants.SOUND_BUTTON_DISABLE_HOVER),
-                loadImage(audioManager.isSFXEnabled() ? Constants.SOUND_BUTTON_CLICK
-                        : Constants.SOUND_BUTTON_DISABLE_CLICK),
-                Constants.SCREEN_WIDTH - 70, // 20px from right edge
-                Constants.SCREEN_HEIGHT - 70, // 20px from bottom
-                25, 25,
-                Constants.BUTTON_CLICK_SOUND,
-                event -> {
-                    audioManager.playSoundEffect(Constants.BUTTON_CLICK_SOUND);
-                    audioManager.toggleSFX();
-                    updateSoundButton();
+        musicVolumeSlider = (Slider) ((VBox) musicSection.getChildren().get(1)).getChildren().get(0);
+        
+        // Sound Effects Volume Section
+        VBox sfxSection = createVolumeSection(
+                "Sound Effects", 
+                audioManager.isSFXEnabled() ? audioManager.getSFXVolume() : 0.0,
+                value -> {
+                    audioManager.setSFXVolume(value);
+                    if (value > 0 && !audioManager.isSFXEnabled()) {
+                        audioManager.toggleSFX();
+                    } else if (value == 0 && audioManager.isSFXEnabled()) {
+                        audioManager.toggleSFX();
+                    }
                 });
-
-        root.getChildren().addAll(musicBtn, soundBtn);
+        sfxVolumeSlider = (Slider) ((VBox) sfxSection.getChildren().get(1)).getChildren().get(0);
+        
+        // Close Button
+        Button closeButton = new Button("CLOSE");
+        closeButton.setStyle(
+                "-fx-background-color: #27ae60; " +
+                "-fx-text-fill: white; " +
+                "-fx-font-size: 14px; " +
+                "-fx-font-weight: bold; " +
+                "-fx-padding: 10px 30px; " +
+                "-fx-background-radius: 5; " +
+                "-fx-cursor: hand;");
+        closeButton.setOnAction(e -> {
+            audioManager.playSoundEffect(Constants.BUTTON_CLICK_SOUND);
+            closeSettingsModal();
+        });
+        
+        closeButton.setOnMouseEntered(e -> 
+            closeButton.setStyle(
+                "-fx-background-color: #229954; " +
+                "-fx-text-fill: white; " +
+                "-fx-font-size: 14px; " +
+                "-fx-font-weight: bold; " +
+                "-fx-padding: 10px 30px; " +
+                "-fx-background-radius: 5; " +
+                "-fx-cursor: hand;"));
+        
+        closeButton.setOnMouseExited(e -> 
+            closeButton.setStyle(
+                "-fx-background-color: #27ae60; " +
+                "-fx-text-fill: white; " +
+                "-fx-font-size: 14px; " +
+                "-fx-font-weight: bold; " +
+                "-fx-padding: 10px 30px; " +
+                "-fx-background-radius: 5; " +
+                "-fx-cursor: hand;"));
+        
+        settingsModal.getChildren().addAll(titleLabel, musicSection, sfxSection, closeButton);
+        
+        // Add to main container (overlay first, then modal on top)
+        mainContainer.getChildren().addAll(settingsOverlay, settingsModal);
     }
-
-    // Helper method to update music button graphics
-    private void updateMusicButton() {
-        boolean isEnabled = audioManager.isMusicEnabled();
-        Image normalImage = loadImage(isEnabled ? Constants.MUSIC_BUTTON : Constants.MUSIC_BUTTON_DISABLE);
-        Image hoverImage = loadImage(Constants.MUSIC_BUTTON_HOVER);
-        Image clickImage = loadImage(Constants.MUSIC_BUTTON_CLICK);
-
-        setButtonGraphic(musicBtn, normalImage, 25, 25);
-
-        // Re-apply hover effects
-        musicBtn.setOnMouseEntered(event -> setButtonGraphic(musicBtn, hoverImage, 25, 25));
-        musicBtn.setOnMouseExited(event -> setButtonGraphic(musicBtn, normalImage, 25, 25));
-        musicBtn.setOnMousePressed(event -> setButtonGraphic(musicBtn, clickImage, 25, 25));
-        musicBtn.setOnMouseReleased(event -> setButtonGraphic(musicBtn, normalImage, 25, 25));
+    
+    private VBox createVolumeSection(String label, double initialValue, VolumeChangeListener listener) {
+        VBox section = new VBox(8);
+        section.setAlignment(Pos.CENTER);
+        
+        Label sectionLabel = new Label(label);
+        sectionLabel.setStyle(
+                "-fx-font-size: 14px; " +
+                "-fx-font-weight: bold; " +
+                "-fx-text-fill: #2c3e50;");
+        
+        VBox sliderBox = new VBox(5);
+        sliderBox.setAlignment(Pos.CENTER);
+        
+        Slider volumeSlider = new Slider(0, 1, initialValue);
+        volumeSlider.setPrefWidth(300);
+        volumeSlider.setShowTickLabels(false);
+        volumeSlider.setShowTickMarks(false);
+        volumeSlider.setStyle(
+                "-fx-control-inner-background: #ecf0f1; " +
+                "-fx-accent: #3498db;");
+        
+        Label volumeLabel = new Label(String.format("%.0f%%", initialValue * 100));
+        volumeLabel.setStyle(
+                "-fx-font-size: 12px; " +
+                "-fx-text-fill: #7f8c8d;");
+        
+        volumeSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            volumeLabel.setText(String.format("%.0f%%", newVal.doubleValue() * 100));
+            listener.onChange(newVal.doubleValue());
+        });
+        
+        sliderBox.getChildren().addAll(volumeSlider, volumeLabel);
+        section.getChildren().addAll(sectionLabel, sliderBox);
+        
+        return section;
     }
-
-    // Helper method to update sound button graphics
-    private void updateSoundButton() {
-        boolean isEnabled = audioManager.isSFXEnabled();
-        Image normalImage = loadImage(isEnabled ? Constants.SOUND_BUTTON : Constants.SOUND_BUTTON_DISABLE);
-        Image hoverImage = loadImage(isEnabled ? Constants.SOUND_BUTTON_HOVER : Constants.SOUND_BUTTON_DISABLE_HOVER);
-        Image clickImage = loadImage(isEnabled ? Constants.SOUND_BUTTON_CLICK : Constants.SOUND_BUTTON_DISABLE_CLICK);
-
-        setButtonGraphic(soundBtn, normalImage, 25, 25);
-
-        // Re-apply hover effects
-        soundBtn.setOnMouseEntered(event -> setButtonGraphic(soundBtn, hoverImage, 25, 25));
-        soundBtn.setOnMouseExited(event -> setButtonGraphic(soundBtn, normalImage, 25, 25));
-        soundBtn.setOnMousePressed(event -> setButtonGraphic(soundBtn, clickImage, 25, 25));
-        soundBtn.setOnMouseReleased(event -> setButtonGraphic(soundBtn, normalImage, 25, 25));
+    
+    @FunctionalInterface
+    private interface VolumeChangeListener {
+        void onChange(double value);
     }
-
-    private static final int MAX_RETRIES = 3;
-    private int retryCount = 0;
-    private MediaView mediaView; // Keep a single instance
+    
+    private void openSettingsModal() {
+        // Update slider values to current actual volumes from AudioManager
+        musicVolumeSlider.setValue(audioManager.isMusicEnabled() ? audioManager.getMusicVolume() : 0.0);
+        sfxVolumeSlider.setValue(audioManager.isSFXEnabled() ? audioManager.getSFXVolume() : 0.0);
+        
+        // Show overlay with fade in
+        FadeTransition overlayFadeIn = new FadeTransition(Duration.millis(300), settingsOverlay);
+        overlayFadeIn.setFromValue(0.0);
+        overlayFadeIn.setToValue(1.0);
+        settingsOverlay.setVisible(true);
+        overlayFadeIn.play();
+        
+        // Show modal with fade in
+        FadeTransition modalFadeIn = new FadeTransition(Duration.millis(300), settingsModal);
+        modalFadeIn.setFromValue(0.0);
+        modalFadeIn.setToValue(1.0);
+        settingsModal.setVisible(true);
+        modalFadeIn.play();
+    }
+    
+    private void closeSettingsModal() {
+        // Fade out overlay
+        FadeTransition overlayFadeOut = new FadeTransition(Duration.millis(300), settingsOverlay);
+        overlayFadeOut.setFromValue(1.0);
+        overlayFadeOut.setToValue(0.0);
+        overlayFadeOut.setOnFinished(e -> settingsOverlay.setVisible(false));
+        overlayFadeOut.play();
+        
+        // Fade out modal
+        FadeTransition modalFadeOut = new FadeTransition(Duration.millis(300), settingsModal);
+        modalFadeOut.setFromValue(1.0);
+        modalFadeOut.setToValue(0.0);
+        modalFadeOut.setOnFinished(e -> settingsModal.setVisible(false));
+        modalFadeOut.play();
+    }
 
     private void setupVideoBackground() {
         try {
@@ -126,7 +261,6 @@ public class LobbyScreen {
             System.out.println("Resource URL: " + resourceUrl);
 
             if (resourceUrl == null) {
-                // Try file system path as fallback
                 File file = new File(Constants.LOBBY_BACKGROUND_VIDEO);
                 if (file.exists()) {
                     resourceUrl = file.toURI().toURL();
@@ -146,7 +280,6 @@ public class LobbyScreen {
                     retryCount++;
                     System.out.println("Retrying video load... Attempt " + retryCount + " of " + MAX_RETRIES);
 
-                    // Retry safely after a short delay
                     new Thread(() -> {
                         try {
                             Thread.sleep(100);
@@ -170,17 +303,14 @@ public class LobbyScreen {
 
             videoPlayer.setCycleCount(MediaPlayer.INDEFINITE);
 
-            // ✅ Create MediaView only once
             if (mediaView == null) {
                 mediaView = new MediaView(videoPlayer);
                 mediaView.setFitWidth(Constants.SCREEN_WIDTH);
                 mediaView.setFitHeight(Constants.SCREEN_HEIGHT);
                 mediaView.setPreserveRatio(false);
 
-                // Ensure video is behind everything else
                 root.getChildren().add(0, mediaView);
             } else {
-                // Reuse the same MediaView
                 mediaView.setMediaPlayer(videoPlayer);
             }
 
@@ -253,9 +383,9 @@ public class LobbyScreen {
             imageView.setFitHeight(height);
             button.setGraphic(imageView);
         } else {
-            button.setText("Button");
+            button.setText("⚙");
             button.setStyle(
-                    "-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+                    "-fx-background-color: #3498db; -fx-text-fill: white; -fx-font-size: 24px; -fx-font-weight: bold;");
         }
 
         button.setStyle(button.getStyle() + "-fx-background-color: transparent; -fx-border-color: transparent;");
@@ -267,8 +397,6 @@ public class LobbyScreen {
         if (hoverImage != null && clickImage != null) {
             button.setOnMouseEntered(event -> {
                 setButtonGraphic(button, hoverImage, width, height);
-                // Optional: play hover sound
-                // audioManager.playSoundEffect(Constants.BUTTON_HOVER_SOUND);
             });
             button.setOnMouseExited(event -> setButtonGraphic(button, image, width, height));
             button.setOnMousePressed(event -> setButtonGraphic(button, clickImage, width, height));
@@ -277,7 +405,6 @@ public class LobbyScreen {
 
         if (action != null) {
             button.setOnAction(event -> {
-                // Play click sound
                 if (soundPath != null && !soundPath.isEmpty()) {
                     audioManager.playSoundEffect(soundPath);
                 }
@@ -381,7 +508,7 @@ public class LobbyScreen {
     }
 
     public Parent getRoot() {
-        return root;
+        return mainContainer;
     }
 
     public void cleanup() {
@@ -389,6 +516,5 @@ public class LobbyScreen {
             videoPlayer.stop();
             videoPlayer.dispose();
         }
-        // DON'T stop music - it should continue to other screens
     }
 }

@@ -1,8 +1,9 @@
+import java.util.HashMap;
+import java.util.Map;
+
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.util.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 public class AudioManager {
     private static AudioManager instance;
@@ -105,12 +106,22 @@ public class AudioManager {
     }
     
     // Getters for state
+
+    // Getters for state
     public boolean isMusicEnabled() {
         return musicEnabled;
     }
     
     public boolean isSFXEnabled() {
         return sfxEnabled;
+    }
+    
+    public double getMusicVolume() {
+        return musicVolume;
+    }
+    
+    public double getSFXVolume() {
+        return sfxVolume;
     }
     
     // Set volumes
@@ -144,4 +155,5 @@ public class AudioManager {
         
         currentMusicPath = null;
     }
+    
 }

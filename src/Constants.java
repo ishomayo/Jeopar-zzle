@@ -1,3 +1,4 @@
+
 public class Constants {
 
     // Screen dimensions
@@ -50,7 +51,7 @@ public class Constants {
     public static final String SOUND_BUTTON_DISABLE_CLICK = "/images/sound_button_click_disable.png";
     public static final String SOUND_BUTTON_DISABLE_HOVER = "/images/sound_button_hover_disable.png";
     public static final String SOUND_BUTTON_DISABLE = "/images/sound_button_disable.png";
-    
+
     public static final String GAME_BACKGROUND_VID = "/videos/game_bg.mp4";
 
     public static final String GAME_BACKGROUND_IMAGE = "/images/game_background.png";
@@ -58,7 +59,7 @@ public class Constants {
     // Sound resources
     public static final String BUTTON_CLICK_SOUND = "/sounds/click.mp3";
     public static final String BUTTON_HOVER_SOUND = "/sounds/hover.mp3";
-    
+
     // Music resources
     public static final String LOBBY_MUSIC = "/sounds/bg.mp3";
     public static final String GAME_MUSIC = "/sounds/ingame.mp3";
@@ -68,6 +69,10 @@ public class Constants {
     public static final double BUTTON_HEIGHT = 60;
     public static final double BACK_BUTTON_WIDTH = 50;
     public static final double BACK_BUTTON_HEIGHT = 50;
+
+    public static final String SETTINGS_BUTTON = "/images/settings_button.png";
+    public static final String SETTINGS_BUTTON_HOVER = "/images/settings_button_hover.png";
+    public static final String SETTINGS_BUTTON_CLICK = "/images/settings_button_click.png";
 
     // Animation durations
     public static final int SPLASH_DURATION_MS = 3000;
