@@ -1,3 +1,5 @@
+import java.util.Random;
+
 import javafx.animation.Animation;
 import javafx.animation.FadeTransition;
 import javafx.animation.KeyFrame;
@@ -15,13 +17,18 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.*;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import java.util.Random;
 
 public class GameScreen {
     private StackPane mainContainer;
@@ -58,7 +65,7 @@ public class GameScreen {
 
     private QuestionManager questionManager;
 
-    private String[] categories = { "KNOWLEDGE", "COMPREHEND", "APPLICATION", "ANALYSIS", "SYNTHESIS", "EVALUATION" };
+    private String[] categories = { "KNOWLEDGE", "COMPREHENSION", "APPLICATION", "ANALYSIS", "SYNTHESIS", "EVALUATION" };
 
     private int[][] pointValues = {
             { 1500, 1500, 1500, 1500, 1500, 1500 },

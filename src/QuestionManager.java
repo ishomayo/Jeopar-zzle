@@ -1,8 +1,10 @@
+
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class QuestionManager {
+
     private Map<Integer, List<Question>> questionsByModule; // Module number -> Questions
     private Map<String, List<Question>> questionsByCategory;
     private Random random;
@@ -21,10 +23,11 @@ public class QuestionManager {
         }
     };
 
-    private String[] categories = { "KNOWLEDGE", "COMPREHENSION", "APPLICATION", "ANALYSIS", "SYNTHESIS",
-            "EVALUATION" };
+    private String[] categories = {"KNOWLEDGE", "COMPREHENSION", "APPLICATION", "ANALYSIS", "SYNTHESIS",
+        "EVALUATION"};
 
     public static class Question {
+
         private String questionText;
         private String[] answers;
         private String correctAnswer;
@@ -72,18 +75,18 @@ public class QuestionManager {
                     return i;
                 }
             }
-            return 0;
+            return -1;
         }
 
         @Override
         public String toString() {
-            return "Question{" +
-                    "text='" + questionText + '\'' +
-                    ", pointValue=" + pointValue +
-                    ", category='" + category + '\'' +
-                    ", module=" + moduleNumber +
-                    ", correctAnswer='" + correctAnswer + '\'' +
-                    '}';
+            return "Question{"
+                    + "text='" + questionText + '\''
+                    + ", pointValue=" + pointValue
+                    + ", category='" + category + '\''
+                    + ", module=" + moduleNumber
+                    + ", correctAnswer='" + correctAnswer + '\''
+                    + '}';
         }
     }
 
@@ -112,12 +115,10 @@ public class QuestionManager {
                     parseCSVFromStream(csvStream, pointValue, module);
                     System.out.println("✓ Successfully loaded " + filename);
                 } catch (IOException e) {
-                    System.err.println("✗ Error parsing " + filename + ": " + e.getMessage());
-                    createFallbackQuestionsForModule(module, pointValue);
+
                 }
             } else {
-                System.out.println("✗ File not found: " + filename + " - Creating fallback questions");
-                createFallbackQuestionsForModule(module, pointValue);
+
             }
         }
 
@@ -149,8 +150,9 @@ public class QuestionManager {
 
         while ((line = reader.readLine()) != null) {
             lineNumber++;
-            if (line.trim().isEmpty())
+            if (line.trim().isEmpty()) {
                 continue;
+            }
 
             try {
                 // Handle quoted commas safely
@@ -161,18 +163,34 @@ public class QuestionManager {
                     continue;
                 }
 
-                String category = cleanText(fields[0]);
-                String questionText = cleanText(fields[1]);
+                String category = cleanText(fields[0]).trim();
+                String questionText = cleanText(fields[1]).trim();
                 String[] answers = {
-                        cleanText(fields[2]),
-                        cleanText(fields[3]),
-                        cleanText(fields[4]),
-                        cleanText(fields[5])
+                    cleanText(fields[2]).trim(),
+                    cleanText(fields[3]).trim(),
+                    cleanText(fields[4]).trim(),
+                    cleanText(fields[5]).trim()
                 };
-                String correctAnswer = cleanText(fields[6]);
+                String correctAnswer = cleanText(fields[6]).trim();
 
-                if (questionText.isEmpty() || correctAnswer.isEmpty())
+                if (questionText.isEmpty() || correctAnswer.isEmpty()) {
                     continue;
+                }
+
+                // DEBUG: check if correctAnswer matches one of the answers
+                boolean matchFound = false;
+                for (String ans : answers) {
+                    if (ans.equals(correctAnswer)) {
+                        matchFound = true;
+                        break;
+                    }
+                }
+
+                if (!matchFound) {
+                    System.err.println("  WARNING: Correct answer does not match options (line " + lineNumber + ")");
+                    System.err.println("    Answers: " + Arrays.toString(answers));
+                    System.err.println("    Correct: '" + correctAnswer + "'");
+                }
 
                 Question question = new Question(
                         questionText, answers, correctAnswer, pointValue, category, moduleNumber);
@@ -182,8 +200,8 @@ public class QuestionManager {
                 questionsAdded++;
 
                 if (questionsAdded <= 3) {
-                    System.out.println("  ✓ Added Q" + questionsAdded + " (" + category + "): " +
-                            questionText.substring(0, Math.min(60, questionText.length())) + "...");
+                    System.out.println("  ✓ Added Q" + questionsAdded + " (" + category + "): "
+                            + questionText.substring(0, Math.min(60, questionText.length())) + "...");
                 }
 
             } catch (Exception e) {
@@ -192,45 +210,7 @@ public class QuestionManager {
         }
 
         reader.close();
-
         System.out.println("  ✓ Finished parsing Module " + moduleNumber + " - Added " + questionsAdded + " questions");
-
-        if (questionsAdded == 0) {
-            System.err.println("  ✗ WARNING: No valid questions parsed for Module " + moduleNumber);
-            createFallbackQuestionsForModule(moduleNumber, pointValue);
-        }
-    }
-
-    private void createFallbackQuestionsForModule(int moduleNumber, int pointValue) {
-        System.out.println("Creating fallback questions for Module " + moduleNumber);
-
-        List<Question> fallbackQuestions = new ArrayList<>();
-
-        // Create 6 questions (one per category)
-        for (int i = 0; i < categories.length; i++) {
-            String category = categories[i];
-
-            String questionText = "Lorem ipsum dolor sit amet for Module " + moduleNumber +
-                    " (" + category + " - " + pointValue + " points)?";
-
-            String[] answers = {
-                    "Lorem ipsum answer A",
-                    "Lorem ipsum answer B",
-                    "Lorem ipsum answer C",
-                    "Lorem ipsum answer D"
-            };
-
-            String correctAnswer = answers[0]; // First answer is correct
-
-            Question question = new Question(questionText, answers, correctAnswer, pointValue, category, moduleNumber);
-            fallbackQuestions.add(question);
-
-            // Add to category mapping
-            questionsByCategory.computeIfAbsent(category, k -> new ArrayList<>()).add(question);
-        }
-
-        questionsByModule.put(moduleNumber, fallbackQuestions);
-        System.out.println("✓ Created " + fallbackQuestions.size() + " fallback questions for Module " + moduleNumber);
     }
 
     private String[] parseCSVLine(String line) {
@@ -273,7 +253,7 @@ public class QuestionManager {
 
         if (moduleNumber == null) {
             System.out.println("WARNING: No module mapping for points " + points);
-            return getRandomQuestion();
+            return getShuffledQuestion(getRandomQuestion()); // shuffle fallback
         }
 
         System.out.println(
@@ -291,21 +271,24 @@ public class QuestionManager {
                 }
             }
 
+            Question selected;
             if (!matchingQuestions.isEmpty()) {
-                Question selected = matchingQuestions.get(random.nextInt(matchingQuestions.size()));
-                System.out.println("✓ Found question from Module " + moduleNumber + ": " +
-                        selected.getQuestionText().substring(0, Math.min(60, selected.getQuestionText().length())));
-                return selected;
+                selected = matchingQuestions.get(random.nextInt(matchingQuestions.size()));
+                System.out.println("✓ Found question from Module " + moduleNumber + ": "
+                        + selected.getQuestionText().substring(0, Math.min(60, selected.getQuestionText().length())));
+            } else {
+                // If no category match, return random from module
+                System.out.println("No category match, returning random from Module " + moduleNumber);
+                selected = moduleQuestions.get(random.nextInt(moduleQuestions.size()));
             }
 
-            // If no category match, return random from module
-            System.out.println("No category match, returning random from Module " + moduleNumber);
-            return moduleQuestions.get(random.nextInt(moduleQuestions.size()));
+            // Return the shuffled version of the selected question
+            return getShuffledQuestion(selected);
         }
 
         // Ultimate fallback
         System.out.println("Module not found, using random question");
-        return getRandomQuestion();
+        return getShuffledQuestion(getRandomQuestion());
     }
 
     public Question getRandomQuestion() {
@@ -341,33 +324,45 @@ public class QuestionManager {
     }
 
     public Question getShuffledQuestion(Question original) {
-        if (original == null)
+        if (original == null) {
             return null;
+        }
 
-        String[] shuffledAnswers = original.getAnswers().clone();
-        String correctAnswer = original.getCorrectAnswer();
-
+        // Copy the answers into a list for easy shuffling
         List<String> answerList = new ArrayList<>();
-        for (String answer : shuffledAnswers) {
-            if (answer != null && !answer.trim().isEmpty()) {
-                answerList.add(answer);
+        for (String ans : original.getAnswers()) {
+            if (ans != null && !ans.trim().isEmpty()) {
+                answerList.add(ans);
             }
         }
 
+        // Shuffle the answers
         Collections.shuffle(answerList);
 
-        String[] result = new String[4];
-        for (int i = 0; i < result.length; i++) {
-            result[i] = i < answerList.size() ? answerList.get(i) : null;
+        // Put them back into an array of size 4
+        String[] shuffledAnswers = new String[4];
+        for (int i = 0; i < shuffledAnswers.length; i++) {
+            shuffledAnswers[i] = i < answerList.size() ? answerList.get(i) : null;
         }
 
+        // Determine the new correct index
+        int newCorrectIndex = -1;
+        for (int i = 0; i < shuffledAnswers.length; i++) {
+            if (shuffledAnswers[i].equals(original.getCorrectAnswer())) {
+                newCorrectIndex = i;
+                break;
+            }
+        }
+
+        // Return a new Question object with shuffled answers
         return new Question(
                 original.getQuestionText(),
-                result,
-                correctAnswer,
+                shuffledAnswers,
+                original.getCorrectAnswer(), // correct answer string stays the same
                 original.getPointValue(),
                 original.getCategory(),
-                original.getModuleNumber());
+                original.getModuleNumber()
+        );
     }
 
     public void printAllQuestions() {
